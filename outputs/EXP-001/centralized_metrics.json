@@ -1,0 +1,69 @@
+{
+  "communication_cost_bytes": 0,
+  "global": {
+    "accuracy": 0.9215686321258545,
+    "loss": 0.4948418140411377
+  },
+  "mode": "centralized",
+  "num_clients": 5,
+  "partition": "non_iid",
+  "per_client": [
+    {
+      "accuracy": 0.8999999761581421,
+      "client_id": 0,
+      "label_histogram": {
+        "0": 22,
+        "1": 3,
+        "2": 13
+      },
+      "loss": 0.35309189558029175,
+      "num_examples": 10
+    },
+    {
+      "accuracy": 0.699999988079071,
+      "client_id": 1,
+      "label_histogram": {
+        "0": 0,
+        "1": 39,
+        "2": 0
+      },
+      "loss": 0.8516017198562622,
+      "num_examples": 10
+    },
+    {
+      "accuracy": 1.0,
+      "client_id": 2,
+      "label_histogram": {
+        "0": 10,
+        "1": 16,
+        "2": 36
+      },
+      "loss": 0.3569633662700653,
+      "num_examples": 16
+    },
+    {
+      "accuracy": 1.0,
+      "client_id": 3,
+      "label_histogram": {
+        "0": 16,
+        "1": 5,
+        "2": 7
+      },
+      "loss": 0.6492443680763245,
+      "num_examples": 7
+    },
+    {
+      "accuracy": 1.0,
+      "client_id": 4,
+      "label_histogram": {
+        "0": 19,
+        "1": 4,
+        "2": 10
+      },
+      "loss": 0.36673399806022644,
+      "num_examples": 8
+    }
+  ],
+  "training_time_sec": 0.5042855410010816,
+  "update_size_bytes": 108
+}

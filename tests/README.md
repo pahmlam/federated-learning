@@ -1,14 +1,16 @@
 # Tests
 
-Future test area for the research codebase.
+Test area for the research codebase.
 
-Expected future coverage:
+Current coverage:
 
-- dataset partitioning and non-IID split validation;
-- config loading and default resolution;
-- metric aggregation and per-client reporting;
-- Flower smoke tests for client/server wiring;
-- training-mode smoke tests for centralized, local-only, and federated paths.
+- synthetic data partitioning and non-IID split validation;
+- frozen-backbone/trainable-head checks;
+- head parameter serialization round-trip;
+- update size accounting.
 
-No test code is added in this skeleton step.
+Run:
 
+```bash
+venv/bin/python -m pytest
+```

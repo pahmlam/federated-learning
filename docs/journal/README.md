@@ -29,7 +29,7 @@ Dành cho cả **Codex**, **Claude Code** (hoặc các AI Coding Agent tương t
 
 | ID | Ngày chạy | Tên thử nghiệm | Trạng thái | Centralized (Acc/F1) | Local-Only Avg (Acc/F1) | Federated (Acc/F1) | Chi tiết |
 | :---: | :---: | :--- | :---: | :---: | :---: | :---: | :--- |
-| **EXP-001** | *Chưa chạy* | *Thử nghiệm mẫu / Baseline đầu tiên* | *Đang chuẩn bị* | *-* | *-* | *-* | [Chi tiết](file:///Users/phamtunglam/Documents/VNPT/federated-learning/docs/journal/template.md) |
+| **EXP-001** | 2026-06-12 | Synthetic Flower + PyTorch baseline | Thành công | 0.9216 | 0.8039 | 0.7059 | [Chi tiết](file:///Users/phamtunglam/Documents/VNPT/federated-learning/docs/journal/2026-06-12_EXP-001_synthetic-flower-pytorch-baseline.md) |
 
 *(Khi chạy thử nghiệm thực tế, hãy thay thế hoặc thêm dòng mới bên dưới dòng mẫu này).*
 

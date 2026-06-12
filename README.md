@@ -25,4 +25,28 @@ The repo is intended to grow toward:
 
 ## Current Status
 
-This is only a skeleton. No training code, model code, dependency file, or dataset is added in this step.
+Demo v0 is available with synthetic offline data:
+
+- `centralized`: pooled-data baseline;
+- `local-only`: per-client baseline;
+- `federated`: Flower/FedAvg simulation across 5 synthetic clients.
+
+The demo uses a frozen backbone and trains only the classifier head. It writes metrics to `outputs/EXP-001/` and records the run in `docs/journal/`.
+
+Run the quick smoke demo:
+
+```bash
+venv/bin/python scripts/run_demo.py --mode all --quick
+```
+
+Run unit tests:
+
+```bash
+venv/bin/python -m pytest
+```
+
+Optional Flower-native run:
+
+```bash
+PATH="$PWD/venv/bin:$PATH" venv/bin/flwr run . --run-config "quick=true num-server-rounds=2" --federation-config "num-supernodes=5" --stream
+```

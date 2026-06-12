@@ -1,14 +1,13 @@
 # Scripts
 
-Future command-line entrypoints for running experiments.
+Command-line entrypoints for running experiments.
 
-Examples of later scripts:
+Current script:
 
-- prepare data partitions;
-- run centralized baseline;
-- run local-only baseline;
-- run Flower simulation;
-- summarize metrics.
+- `run_demo.py`: runs synthetic `centralized`, `local-only`, `federated`, or all modes.
 
-No executable script is added in this skeleton step.
+Quick smoke command:
 
+```bash
+venv/bin/python scripts/run_demo.py --mode all --quick
+```

@@ -1,4 +1,7 @@
 venv/
-md/
+/md/
 .claude/
 .agent/
+__pycache__/
+.pytest_cache/
+*.py[cod]
