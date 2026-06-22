@@ -109,6 +109,12 @@ Run all three modes with a quick CPU config:
 venv/bin/python scripts/run_demo.py --mode all --quick
 ```
 
+Run the OOM-safe single-machine profile before trying real models or image datasets:
+
+```bash
+venv/bin/python scripts/run_demo.py --mode all --profile oom-safe
+```
+
 Run one mode:
 
 ```bash
@@ -131,7 +137,7 @@ venv/bin/python -m pytest
 
 ## Demo Output
 
-`scripts/run_demo.py` writes JSON files to `outputs/EXP-001/`:
+`scripts/run_demo.py` writes JSON files to `outputs/EXP-001/` by default. The OOM-safe profile writes to `outputs/EXP-002/` unless `--output-dir` is provided:
 
 ```text
 centralized_metrics.json
@@ -148,6 +154,7 @@ Each metrics file includes:
 - training time;
 - update size in bytes;
 - communication cost in bytes.
+- profile metadata and a lightweight process resource snapshot when available.
 
 ## Research Direction
 

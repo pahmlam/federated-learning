@@ -1,4 +1,4 @@
-"""Federated baseline using Flower simulation and head-only updates."""
+"""Federated baseline for precomputed embedding artifacts."""
 
 from __future__ import annotations
 
@@ -12,16 +12,20 @@ from flwr.server import ServerConfig
 from flwr.server.strategy import FedAvg
 from flwr.simulation import start_simulation
 
-from src.data.synthetic import ClientDataset, make_client_splits, make_pooled_dataset
+from src.data.embedding import EmbeddingClientDataset, EmbeddingDatasetBundle
 from src.evaluation.metrics import parameter_bytes
-from src.models.head_model import create_model, get_head_parameters, set_head_parameters
+from src.models.embedding_head import (
+    create_embedding_head_model,
+    get_embedding_head_parameters,
+    set_embedding_head_parameters,
+)
 from src.training.trainer import evaluate_model, train_head
 from src.utils.config import DemoConfig
 from src.utils.resources import get_resource_snapshot
 
 
-class CapturingFedAvg(FedAvg):
-    """FedAvg strategy that keeps the latest aggregated parameters."""
+class CapturingEmbeddingFedAvg(FedAvg):
+    """FedAvg strategy that stores the latest aggregated embedding-head params."""
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -34,16 +38,26 @@ class CapturingFedAvg(FedAvg):
         return parameters, metrics
 
 
-class HeadOnlyClient(NumPyClient):
-    """Flower NumPyClient that trains only classifier head parameters."""
+class EmbeddingHeadClient(NumPyClient):
+    """Flower client for head-only training on precomputed embeddings."""
 
-    def __init__(self, client_data: ClientDataset, config: DemoConfig) -> None:
+    def __init__(
+        self,
+        client_data: EmbeddingClientDataset,
+        bundle: EmbeddingDatasetBundle,
+        config: DemoConfig,
+    ) -> None:
         self.client_data = client_data
+        self.bundle = bundle
         self.config = config
 
     def fit(self, parameters: NDArrays, config: dict[str, Any]):
-        model = create_model(self.config)
-        set_head_parameters(model, parameters)
+        model = create_embedding_head_model(
+            embedding_dim=self.bundle.embedding_dim,
+            num_classes=self.bundle.num_classes,
+            seed=self.config.seed,
+        )
+        set_embedding_head_parameters(model, parameters)
         metrics = train_head(
             model=model,
             train_x=self.client_data.train_x,
@@ -54,7 +68,7 @@ class HeadOnlyClient(NumPyClient):
             seed=self.config.seed + self.client_data.client_id,
             num_workers=self.config.num_workers,
         )
-        updated = get_head_parameters(model)
+        updated = get_embedding_head_parameters(model)
         return (
             updated,
             int(self.client_data.train_y.numel()),
@@ -66,9 +80,18 @@ class HeadOnlyClient(NumPyClient):
         )
 
     def evaluate(self, parameters: NDArrays, config: dict[str, Any]):
-        model = create_model(self.config)
-        set_head_parameters(model, parameters)
-        metrics = evaluate_model(model, self.client_data.val_x, self.client_data.val_y)
+        model = create_embedding_head_model(
+            embedding_dim=self.bundle.embedding_dim,
+            num_classes=self.bundle.num_classes,
+            seed=self.config.seed,
+        )
+        set_embedding_head_parameters(model, parameters)
+        metrics = evaluate_model(
+            model,
+            self.client_data.val_x,
+            self.client_data.val_y,
+            positive_class_id=_unsafe_class_id(self.bundle),
+        )
         return (
             float(metrics["loss"]),
             int(self.client_data.val_y.numel()),
@@ -76,24 +99,28 @@ class HeadOnlyClient(NumPyClient):
         )
 
 
-def run_federated(config: DemoConfig) -> dict[str, Any]:
-    """Run FedAvg over simulated clients and return JSON-ready metrics."""
+def run_embedding_federated(
+    config: DemoConfig,
+    bundle: EmbeddingDatasetBundle,
+) -> dict[str, Any]:
+    """Run FedAvg over embedding clients and return JSON-ready metrics."""
 
     start_time = time.perf_counter()
-    clients = make_client_splits(config)
-    pooled = make_pooled_dataset(clients)
-    initial_model = create_model(config)
-    initial_parameters = get_head_parameters(initial_model)
+    initial_model = create_embedding_head_model(
+        embedding_dim=bundle.embedding_dim,
+        num_classes=bundle.num_classes,
+        seed=config.seed,
+    )
+    initial_parameters = get_embedding_head_parameters(initial_model)
     update_bytes = parameter_bytes(initial_parameters)
-
-    strategy = CapturingFedAvg(
+    strategy = CapturingEmbeddingFedAvg(
         fraction_fit=1.0,
         fraction_evaluate=1.0,
-        min_fit_clients=config.num_clients,
-        min_evaluate_clients=config.num_clients,
-        min_available_clients=config.num_clients,
+        min_fit_clients=len(bundle.clients),
+        min_evaluate_clients=len(bundle.clients),
+        min_available_clients=len(bundle.clients),
         initial_parameters=ndarrays_to_parameters(initial_parameters),
-        evaluate_fn=_server_evaluate_fn(config, pooled.val_x, pooled.val_y),
+        evaluate_fn=_server_evaluate_fn(config, bundle),
         on_fit_config_fn=lambda server_round: {
             "server_round": server_round,
             "local_epochs": config.local_epochs,
@@ -106,8 +133,8 @@ def run_federated(config: DemoConfig) -> dict[str, Any]:
 
     def client_fn(context: Context):
         partition_id = int(context.node_config.get("partition-id", context.node_id))
-        client = clients[partition_id % config.num_clients]
-        return HeadOnlyClient(client, config).to_client()
+        client = bundle.clients[partition_id % len(bundle.clients)]
+        return EmbeddingHeadClient(client, bundle, config).to_client()
 
     ray_init_args: dict[str, Any] = {
         "ignore_reinit_error": True,
@@ -118,61 +145,92 @@ def run_federated(config: DemoConfig) -> dict[str, Any]:
 
     history = start_simulation(
         client_fn=client_fn,
-        num_clients=config.num_clients,
+        num_clients=len(bundle.clients),
         config=ServerConfig(num_rounds=config.num_rounds),
         strategy=strategy,
         client_resources={"num_cpus": config.client_num_cpus},
         ray_init_args=ray_init_args,
     )
-
     final_parameters = (
         parameters_to_ndarrays(strategy.latest_parameters)
         if strategy.latest_parameters is not None
         else initial_parameters
     )
-    final_model = create_model(config)
-    set_head_parameters(final_model, final_parameters)
-    global_metrics = evaluate_model(final_model, pooled.val_x, pooled.val_y)
-    per_client = _evaluate_per_client(config, clients, final_parameters)
-    duration = time.perf_counter() - start_time
-
+    final_model = create_embedding_head_model(
+        embedding_dim=bundle.embedding_dim,
+        num_classes=bundle.num_classes,
+        seed=config.seed,
+    )
+    set_embedding_head_parameters(final_model, final_parameters)
+    global_metrics = evaluate_model(
+        final_model,
+        bundle.pooled.val_x,
+        bundle.pooled.val_y,
+        positive_class_id=_unsafe_class_id(bundle),
+    )
+    per_client = _evaluate_per_client(config, bundle, final_parameters)
     return {
         "mode": "federated",
         "profile": config.profile,
-        "partition": config.partition,
-        "num_clients": config.num_clients,
+        "data_source": "embedding",
+        "artifact_path": bundle.artifact_path,
+        "num_clients": len(bundle.clients),
         "rounds": config.num_rounds,
+        "embedding_dim": bundle.embedding_dim,
+        "num_classes": bundle.num_classes,
+        "label_mapping": bundle.label_mapping,
         "global": global_metrics,
         "per_client": per_client,
-        "training_time_sec": duration,
+        "training_time_sec": time.perf_counter() - start_time,
         "update_size_bytes": update_bytes,
-        "communication_cost_bytes": update_bytes * config.num_clients * config.num_rounds * 2,
+        "communication_cost_bytes": update_bytes * len(bundle.clients) * config.num_rounds * 2,
         "resource_snapshot": get_resource_snapshot(),
         "flower_history": _history_to_dict(history),
     }
 
 
-def _server_evaluate_fn(config: DemoConfig, val_x, val_y):
+def _server_evaluate_fn(config: DemoConfig, bundle: EmbeddingDatasetBundle):
     def evaluate(server_round: int, parameters: NDArrays, run_config: dict[str, Any]):
-        model = create_model(config)
-        set_head_parameters(model, parameters)
-        metrics = evaluate_model(model, val_x, val_y)
+        model = create_embedding_head_model(
+            embedding_dim=bundle.embedding_dim,
+            num_classes=bundle.num_classes,
+            seed=config.seed,
+        )
+        set_embedding_head_parameters(model, parameters)
+        metrics = evaluate_model(
+            model,
+            bundle.pooled.val_x,
+            bundle.pooled.val_y,
+            positive_class_id=_unsafe_class_id(bundle),
+        )
         return float(metrics["loss"]), _metric_payload(metrics, exclude={"loss"})
 
     return evaluate
 
 
 def _evaluate_per_client(
-    config: DemoConfig, clients: list[ClientDataset], parameters: NDArrays
+    config: DemoConfig,
+    bundle: EmbeddingDatasetBundle,
+    parameters: NDArrays,
 ) -> list[dict[str, Any]]:
     records = []
-    for client in clients:
-        model = create_model(config)
-        set_head_parameters(model, parameters)
-        metrics = evaluate_model(model, client.val_x, client.val_y)
+    for client in bundle.clients:
+        model = create_embedding_head_model(
+            embedding_dim=bundle.embedding_dim,
+            num_classes=bundle.num_classes,
+            seed=config.seed,
+        )
+        set_embedding_head_parameters(model, parameters)
+        metrics = evaluate_model(
+            model,
+            client.val_x,
+            client.val_y,
+            positive_class_id=_unsafe_class_id(bundle),
+        )
         records.append(
             {
                 "client_id": client.client_id,
+                "client_label": client.client_label,
                 "num_examples": int(client.val_y.numel()),
                 "label_histogram": client.label_histogram,
                 **_float_metrics(metrics),
@@ -222,6 +280,10 @@ def _history_to_dict(history) -> dict[str, Any]:
         "losses_distributed": history.losses_distributed,
         "metrics_distributed": history.metrics_distributed,
     }
+
+
+def _unsafe_class_id(bundle: EmbeddingDatasetBundle) -> int | None:
+    return bundle.label_mapping.get("unsafe")
 
 
 def _metric_payload(

@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Run synthetic FL demo baselines."""
+"""Run baseline modes on a precomputed embedding artifact."""
 
 from __future__ import annotations
 
 import argparse
 import sys
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -12,68 +13,92 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from src.fl.federated import run_federated
-from src.training.baselines import run_centralized, run_local_only
-from src.utils.config import build_config
+from src.data.embedding import load_embedding_dataset_bundle
+from src.fl.embedding_federated import run_embedding_federated
+from src.training.embedding_baselines import (
+    run_embedding_centralized,
+    run_embedding_local_only,
+)
+from src.utils.config import DemoConfig
 from src.utils.io import write_json
 from src.utils.resources import get_resource_snapshot
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run synthetic FL demo baselines.")
+    parser = argparse.ArgumentParser(
+        description="Run FL baselines on a precomputed embedding artifact."
+    )
     parser.add_argument(
         "--mode",
         choices=["centralized", "local-only", "federated", "all"],
         default="all",
     )
     parser.add_argument(
+        "--artifact",
+        default="data/processed/ppe_embeddings_oom_safe.npz",
+        help="Embedding NPZ created by scripts/precompute_embeddings.py.",
+    )
+    parser.add_argument(
         "--profile",
         choices=["default", "quick", "oom-safe"],
-        default="default",
-        help="Run profile. Use oom-safe before trying real models/datasets locally.",
+        default="oom-safe",
     )
-    parser.add_argument("--partition", choices=["iid", "non_iid"], default="non_iid")
+    parser.add_argument("--output-dir", default="outputs/EXP-003")
     parser.add_argument(
-        "--quick",
-        action="store_true",
-        help="Legacy alias for --profile quick.",
+        "--exp-id",
+        default=None,
+        help="Experiment ID to write into JSON outputs. Defaults to EXP-* output dir name.",
     )
-    parser.add_argument("--output-dir", default=None)
     parser.add_argument("--seed", type=int, default=2026)
     args = parser.parse_args()
-    if args.quick and args.profile != "default":
-        parser.error("--quick cannot be combined with --profile; use one or the other.")
 
-    config = build_config(
-        profile=args.profile,
-        partition=args.partition,
-        quick=args.quick,
+    bundle = load_embedding_dataset_bundle(args.artifact)
+    exp_id = _resolve_exp_id(args.output_dir, args.exp_id)
+    config = DemoConfig(
+        exp_id=exp_id,
         output_dir=args.output_dir,
+        profile=args.profile,
+        num_clients=len(bundle.clients),
+        num_classes=bundle.num_classes,
+        input_dim=bundle.embedding_dim,
+        embedding_dim=bundle.embedding_dim,
         seed=args.seed,
+    ).normalized()
+    # Keep artifact-derived dimensions intact even when oom-safe clamps synthetic fields.
+    config = replace(
+        config,
+        exp_id=exp_id,
+        output_dir=args.output_dir,
+        num_clients=len(bundle.clients),
+        num_classes=bundle.num_classes,
+        input_dim=bundle.embedding_dim,
+        embedding_dim=bundle.embedding_dim,
     )
     output_dir = Path(config.output_dir)
 
     results: dict[str, Any] = {}
     if args.mode in {"centralized", "all"}:
-        results["centralized"] = run_centralized(config)
+        results["centralized"] = run_embedding_centralized(config, bundle)
         write_json(output_dir / "centralized_metrics.json", results["centralized"])
 
     if args.mode in {"local-only", "all"}:
-        results["local-only"] = run_local_only(config)
+        results["local-only"] = run_embedding_local_only(config, bundle)
         write_json(output_dir / "local_only_metrics.json", results["local-only"])
 
     if args.mode in {"federated", "all"}:
-        results["federated"] = run_federated(config)
+        results["federated"] = run_embedding_federated(config, bundle)
         write_json(output_dir / "federated_metrics.json", results["federated"])
 
     summary = {
         "experiment": config.exp_id,
         "profile": config.profile,
-        "partition": config.partition,
-        "quick": config.quick,
+        "data_source": "embedding",
+        "artifact_path": bundle.artifact_path,
+        "label_mapping": bundle.label_mapping,
         "config": {
-            "num_clients": config.num_clients,
-            "samples_per_client": config.samples_per_client,
+            "num_clients": len(bundle.clients),
+            "num_classes": bundle.num_classes,
+            "embedding_dim": bundle.embedding_dim,
             "batch_size": config.batch_size,
             "local_epochs": config.local_epochs,
             "centralized_epochs": config.centralized_epochs,
@@ -90,7 +115,16 @@ def main() -> None:
         "resource_snapshot": get_resource_snapshot(),
     }
     write_json(output_dir / "summary.json", summary)
-    print(f"Wrote demo metrics to {output_dir}")
+    print(f"Wrote embedding demo metrics to {output_dir}")
+
+
+def _resolve_exp_id(output_dir: str, explicit_exp_id: str | None) -> str:
+    if explicit_exp_id:
+        return explicit_exp_id
+    output_name = Path(output_dir).name
+    if output_name.startswith("EXP-"):
+        return output_name
+    return "EXP-003"
 
 
 def _summary_for_mode(result: dict[str, Any]) -> dict[str, Any]:

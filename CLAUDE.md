@@ -1,6 +1,4 @@
-# AGENTS.md
-
-This file provides guidance to Codex sessions when working with this repository.
+This file provides guidance to Claude sessions when working with this repository.
 
 ## Repository Overview
 
@@ -172,14 +170,3 @@ rg "Flower|FedAvg|embedding|adapter|LoRA|face|PPE" .
 - Prefer relative links between local docs.
 - Use tables for structured comparisons.
 - Keep heading levels hierarchical.
-- If editing `AGENTS.md`, keep it practical and below roughly 200 lines.
-
-## Answering User Questions
-
-The user is learning FL and Flower. Good answers should:
-
-- explain the real workflow, not just theory;
-- say which parts are automated and which parts need human labels;
-- avoid implying Flower solves labeling, privacy, edge compute, or novelty by itself;
-- connect answers back to face/PPE, edge clients, and parameter-efficient training;
-- recommend baseline-first work before proposing method changes.

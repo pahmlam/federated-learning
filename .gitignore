@@ -7,3 +7,32 @@ __pycache__/
 *.py[cod]
 docs/pdfs/
 docs/md/
+notes/
+
+# Local datasets and generated artifacts
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+data/partitions/*
+!data/partitions/.gitkeep
+outputs/EXP-*/
+outputs/checkpoints/*
+!outputs/checkpoints/.gitkeep
+outputs/logs/*
+!outputs/logs/.gitkeep
+outputs/metrics/*
+!outputs/metrics/.gitkeep
+outputs/reports/*
+!outputs/reports/.gitkeep
+
+# Large archives/checkpoints
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.pt
+*.pth
+*.ckpt
+
+ppe/

@@ -11,7 +11,9 @@ requires-python = ">=3.10"
 dependencies = [
     "flwr[simulation]>=1.30.0",
     "numpy>=2.0.0",
+    "Pillow>=10.0.0",
     "torch>=2.3.0",
+    "torchvision>=0.18.0",
     "pyyaml>=6.0.0",
     "pytest>=8.0.0",
 ]
@@ -34,6 +36,7 @@ clientapp = "src.fl.client_app:app"
 
 [tool.flwr.app.config]
 num-server-rounds = 3
+profile = "default"
 num-clients = 5
 num-classes = 3
 input-dim = 16
@@ -46,5 +49,7 @@ local-epochs = 2
 centralized-epochs = 4
 lr = 0.05
 seed = 2026
+num-workers = 0
+client-num-cpus = 1.0
 quick = false
 output-dir = "outputs/EXP-001"

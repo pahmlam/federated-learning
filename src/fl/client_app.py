@@ -28,6 +28,7 @@ def train(msg: Message, context: Context) -> Message:
         batch_size=config.batch_size,
         lr=config.lr,
         seed=config.seed + client.client_id,
+        num_workers=config.num_workers,
     )
 
     content = RecordDict(
@@ -38,6 +39,7 @@ def train(msg: Message, context: Context) -> Message:
                     "num-examples": int(client.train_y.numel()),
                     "train_loss": float(train_metrics["loss"]),
                     "train_accuracy": float(train_metrics["accuracy"]),
+                    "train_macro_f1": float(train_metrics["macro_f1"]),
                 }
             ),
         }
@@ -61,6 +63,7 @@ def evaluate(msg: Message, context: Context) -> Message:
                     "num-examples": int(client.val_y.numel()),
                     "loss": float(metrics["loss"]),
                     "accuracy": float(metrics["accuracy"]),
+                    "macro_f1": float(metrics["macro_f1"]),
                 }
             )
         }

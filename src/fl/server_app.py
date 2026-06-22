@@ -56,5 +56,6 @@ def _evaluate_global(config: DemoConfig, arrays: ArrayRecord, val_x, val_y):
             "num-examples": int(val_y.numel()),
             "loss": float(metrics["loss"]),
             "accuracy": float(metrics["accuracy"]),
+            "macro_f1": float(metrics["macro_f1"]),
         }
     )

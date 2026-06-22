@@ -1,0 +1,5 @@
+sample_id,image_path,label,client_id,split
+ppe_site_a_0001,data/raw/ppe/site_a/frame_0001.jpg,helmet,site-a,train
+ppe_site_a_0002,data/raw/ppe/site_a/frame_0002.jpg,no_helmet,site-a,val
+ppe_site_b_0001,data/raw/ppe/site_b/frame_0001.jpg,helmet,site-b,train
+ppe_site_b_0002,data/raw/ppe/site_b/frame_0002.jpg,vest,site-b,test

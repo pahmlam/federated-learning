@@ -15,6 +15,7 @@ def train_head(
     batch_size: int,
     lr: float,
     seed: int,
+    num_workers: int = 0,
 ) -> dict[str, float]:
     model.train()
     generator = torch.Generator().manual_seed(seed)
@@ -23,6 +24,7 @@ def train_head(
         batch_size=batch_size,
         shuffle=True,
         generator=generator,
+        num_workers=num_workers,
     )
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(
@@ -41,7 +43,10 @@ def train_head(
 
 
 def evaluate_model(
-    model: nn.Module, features: torch.Tensor, labels: torch.Tensor
+    model: nn.Module,
+    features: torch.Tensor,
+    labels: torch.Tensor,
+    positive_class_id: int | None = None,
 ) -> dict[str, float]:
     model.eval()
     criterion = nn.CrossEntropyLoss()
@@ -50,4 +55,57 @@ def evaluate_model(
         loss = criterion(logits, labels)
         predictions = torch.argmax(logits, dim=1)
         accuracy = (predictions == labels).float().mean()
-    return {"loss": float(loss.item()), "accuracy": float(accuracy.item())}
+    metrics = {
+        "loss": float(loss.item()),
+        "accuracy": float(accuracy.item()),
+        "macro_f1": _macro_f1(predictions, labels, num_classes=int(logits.shape[1])),
+    }
+    if positive_class_id is not None:
+        recall = _recall_for_class(predictions, labels, positive_class_id)
+        metrics["unsafe_recall"] = recall
+        metrics["false_negative_rate"] = 1.0 - recall
+    return metrics
+
+
+def _macro_f1(
+    predictions: torch.Tensor,
+    labels: torch.Tensor,
+    num_classes: int,
+) -> float:
+    scores = [
+        _f1_for_class(predictions, labels, class_id)
+        for class_id in range(num_classes)
+    ]
+    if not scores:
+        return 0.0
+    return float(sum(scores) / len(scores))
+
+
+def _f1_for_class(
+    predictions: torch.Tensor,
+    labels: torch.Tensor,
+    class_id: int,
+) -> float:
+    predicted = predictions == class_id
+    actual = labels == class_id
+    tp = int((predicted & actual).sum().item())
+    fp = int((predicted & ~actual).sum().item())
+    fn = int((~predicted & actual).sum().item())
+    precision = tp / (tp + fp) if (tp + fp) else 0.0
+    recall = tp / (tp + fn) if (tp + fn) else 0.0
+    if precision + recall == 0.0:
+        return 0.0
+    return float(2 * precision * recall / (precision + recall))
+
+
+def _recall_for_class(
+    predictions: torch.Tensor,
+    labels: torch.Tensor,
+    class_id: int,
+) -> float:
+    actual = labels == class_id
+    tp = int(((predictions == class_id) & actual).sum().item())
+    fn = int(((predictions != class_id) & actual).sum().item())
+    if tp + fn == 0:
+        return 0.0
+    return float(tp / (tp + fn))

@@ -1,0 +1,67 @@
+# PPE OOM-safe smoke specification.
+# This is a planning/config template, not an executable experiment config yet.
+
+experiment:
+  task: ppe_classification
+  stage: real-data-smoke-spec
+  run_profile: oom-safe
+  create_journal_exp: false
+
+data:
+  manifest: configs/datasets/ppe_real_smoke_manifest.csv
+  root_dir: /path/to/private/ppe_images
+  dry_run_artifact_target: data/processed/ppe_embeddings_oom_safe.npz
+  real_artifact_target: data/processed/ppe_real_embeddings_oom_safe.npz
+  labels:
+    - safe
+    - unsafe
+  future_labels:
+    - unsafe_no_helmet
+    - unsafe_no_vest
+    - unsafe_multiple
+  client_unit: site_or_edge_box_or_nvr_or_local_server
+  split_values:
+    - train
+    - val
+    - test
+  privacy:
+    commit_raw_images: false
+    commit_raw_videos: false
+    commit_private_checkpoints: false
+
+smoke_limits:
+  num_clients: 2-3
+  samples_per_client: 20-100
+  batch_size: 1-4
+  local_epochs: 1
+  centralized_epochs: 1
+  federated_rounds: 1-2
+  num_workers: 0
+  ray_num_cpus: 1
+
+model:
+  default_flow: synthetic_embedding_dry_run_then_torchvision_resnet18_precompute
+  dry_run_backend: synthetic
+  real_image_backend: torchvision-resnet18
+  real_image_weights: imagenet
+  backbone: frozen_resnet18
+  embedding_dim: 512
+  trainable_part: classifier_head
+  direct_image_training: disabled_until_embedding_smoke_is_stable
+
+metrics:
+  global:
+    - accuracy
+    - macro_f1
+    - unsafe_recall
+    - false_negative_rate
+  per_client:
+    - accuracy
+    - macro_f1
+    - unsafe_recall
+    - false_negative_rate
+  resource:
+    - training_time_sec
+    - update_size_bytes
+    - communication_cost_bytes
+    - peak_ram_if_available

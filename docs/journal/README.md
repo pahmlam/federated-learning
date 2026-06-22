@@ -30,6 +30,9 @@ Dành cho cả **Codex**, **Claude Code** (hoặc các AI Coding Agent tương t
 | ID | Ngày chạy | Tên thử nghiệm | Trạng thái | Centralized (Acc/F1) | Local-Only Avg (Acc/F1) | Federated (Acc/F1) | Chi tiết |
 | :---: | :---: | :--- | :---: | :---: | :---: | :---: | :--- |
 | **EXP-001** | 2026-06-12 | Synthetic Flower + PyTorch baseline | Thành công | 0.9216 | 0.8039 | 0.7059 | [Chi tiết](file:///Users/phamtunglam/Documents/VNPT/federated-learning/docs/journal/2026-06-12_EXP-001_synthetic-flower-pytorch-baseline.md) |
+| **EXP-002** | 2026-06-18 | OOM-safe single-machine smoke profile | Thành công | 0.6207 | 0.9310 | 0.3448 | [Chi tiết](file:///Users/phamtunglam/Documents/VNPT/federated-learning/docs/journal/2026-06-18_EXP-002_oom-safe-single-machine-smoke.md) |
+| **EXP-003** | 2026-06-18 | PPE embedding dry-run baseline | Thành công | 0.5000 | 0.0000 | 0.5000 | [Chi tiết](file:///Users/phamtunglam/Documents/VNPT/federated-learning/docs/journal/2026-06-18_EXP-003_ppe-embedding-dry-run-baseline.md) |
+| **EXP-004** | 2026-06-22 | PPE real ResNet18 embedding smoke | Thành công | 0.4667/0.4661 | 0.5000/0.3206 | 0.5000/0.3333 | [Chi tiết](file:///Users/phamtunglam/Documents/VNPT/federated-learning/docs/journal/2026-06-22_EXP-004_ppe-real-resnet18-embedding-smoke.md) |
 
 *(Khi chạy thử nghiệm thực tế, hãy thay thế hoặc thêm dòng mới bên dưới dòng mẫu này).*
 

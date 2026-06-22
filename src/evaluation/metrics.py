@@ -22,11 +22,23 @@ def weighted_average_metric(records: list[dict[str, float | int]]) -> dict[str, 
     if total_examples == 0:
         return {"loss": 0.0, "accuracy": 0.0}
 
-    loss = sum(float(record["loss"]) * int(record["num_examples"]) for record in records)
-    accuracy = sum(
-        float(record["accuracy"]) * int(record["num_examples"]) for record in records
+    metric_names = sorted(
+        {
+            key
+            for record in records
+            for key in record
+            if key not in {"client_id", "num_examples"}
+            and isinstance(record[key], (float, int))
+        }
     )
     return {
-        "loss": float(loss / total_examples),
-        "accuracy": float(accuracy / total_examples),
+        metric_name: float(
+            sum(
+                float(record[metric_name]) * int(record["num_examples"])
+                for record in records
+                if metric_name in record
+            )
+            / total_examples
+        )
+        for metric_name in metric_names
     }
