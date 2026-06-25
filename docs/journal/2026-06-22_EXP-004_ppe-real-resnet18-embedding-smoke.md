@@ -97,6 +97,6 @@ Kết quả dưới đây là mode `federated` sau 1 round.
 
 ## 7. Bước Tiếp Theo (Next Steps)
 - [ ] Cải thiện rule hoặc tạo nhãn compliance được review bởi người, tránh phụ thuộc hoàn toàn vào proxy `has_core_ppe`.
-- [ ] Chạy thêm 2-3 round hoặc tăng epoch nhỏ để xem metric có ổn định hơn không.
-- [ ] Thêm confusion matrix hoặc precision/recall theo class cho báo cáo PPE.
-- [ ] Nếu ổn định, tăng mẫu/client có kiểm soát và ghi resource/time/update size.
+- [x] Chạy thêm 2-3 round hoặc tăng epoch nhỏ để xem metric có ổn định hơn không. *(EXP-005: 3 round/3 epoch; EXP-007: 10 round.)*
+- [x] Thêm confusion matrix hoặc precision/recall theo class cho báo cáo PPE. *(EXP-005 trở đi.)*
+- [x] Nếu ổn định, tăng mẫu/client có kiểm soát và ghi resource/time/update size. *(EXP-006: 480 mẫu, ghi resource/time/update.)*

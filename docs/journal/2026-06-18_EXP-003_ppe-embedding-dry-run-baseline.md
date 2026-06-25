@@ -75,6 +75,6 @@ Kết quả dưới đây là mode `federated` sau 1 round.
   - `outputs/EXP-003/summary.json`
 
 ## 7. Bước Tiếp Theo (Next Steps)
-- [ ] Thay backend `synthetic` bằng backend frozen pretrained backbone thật.
-- [ ] Tạo manifest từ dataset PPE public hoặc nội bộ.
-- [ ] Chạy real-data smoke run nhỏ với cùng profile OOM-safe trước khi tăng batch/client/round.
+- [x] Thay backend `synthetic` bằng backend frozen pretrained backbone thật. *(Đã làm: EXP-004 — torchvision-resnet18.)*
+- [x] Tạo manifest từ dataset PPE public hoặc nội bộ. *(EXP-004 manifest `data/ppe`; EXP-006 generator có seed.)*
+- [x] Chạy real-data smoke run nhỏ với cùng profile OOM-safe trước khi tăng batch/client/round. *(Đã làm: EXP-004.)*
