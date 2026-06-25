@@ -35,6 +35,7 @@ Dành cho cả **Codex**, **Claude Code** (hoặc các AI Coding Agent tương t
 | **EXP-004** | 2026-06-22 | PPE real ResNet18 embedding smoke | Thành công | 0.4667/0.4661 | 0.5000/0.3206 | 0.5000/0.3333 | [Chi tiết](file:///Users/phamtunglam/Documents/VNPT/federated-learning/docs/journal/2026-06-22_EXP-004_ppe-real-resnet18-embedding-smoke.md) |
 | **EXP-005** | 2026-06-22 | PPE real ResNet18 stability baseline | Thành công | 0.5167/0.5055 | 0.6833/0.6832 | 0.7000/0.6997 | [Chi tiết](file:///Users/phamtunglam/Documents/VNPT/federated-learning/docs/journal/2026-06-22_EXP-005_ppe-real-resnet18-stability-baseline.md) |
 | **EXP-006** | 2026-06-25 | PPE real ResNet18 scaled baseline (480/3, manifest sinh tự động) | Thành công | 0.5583/0.5173 | 0.6250/0.6173 | 0.5917/0.5812 | [Chi tiết](file:///Users/phamtunglam/Documents/VNPT/federated-learning/docs/journal/2026-06-25_EXP-006_ppe-real-resnet18-scaled-baseline.md) |
+| **EXP-007** | 2026-06-25 | PPE real ResNet18 train-longer baseline (480/3, 10 round) | Thành công | 0.6000/0.5960 | 0.6000/0.5908 | 0.6083/0.6081 | [Chi tiết](file:///Users/phamtunglam/Documents/VNPT/federated-learning/docs/journal/2026-06-25_EXP-007_ppe-real-resnet18-train-longer-baseline.md) |
 
 *(Khi chạy thử nghiệm thực tế, hãy thay thế hoặc thêm dòng mới bên dưới dòng mẫu này).*
 
