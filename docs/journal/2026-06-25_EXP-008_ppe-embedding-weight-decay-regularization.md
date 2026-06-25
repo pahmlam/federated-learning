@@ -74,7 +74,7 @@ Global federated confusion matrix: `[[44, 16], [30, 30]]` → safe recall `0.733
 - **Đường dẫn outputs:** `outputs/EXP-008-wd1e-3/`, `outputs/EXP-008-wd1e-2/`, `outputs/EXP-008-wd1e-1/` (mỗi cái có 4 JSON).
 
 ## 7. Bước Tiếp Theo (Next Steps)
-- [ ] Vì regularize không nâng trần ~0.60: thử **đổi biểu diễn/capacity** — L2-normalize embedding (cosine-style, EXP-009) hoặc MLP head 2 lớp (EXP-010).
-- [ ] Nếu cần ưu tiên unsafe recall: cân nhắc class weight / threshold tuning thay vì wd mạnh (vì wd cao làm tụt unsafe recall).
+- [x] Vì regularize không nâng trần ~0.60: thử **đổi biểu diễn/capacity** — L2-normalize embedding (cosine-style, EXP-009) hoặc MLP head 2 lớp (EXP-010). *(Đã làm: EXP-009 L2-norm **vượt trần** centralized 0.596→0.623 + chặn diverge miễn phí + unsafe recall 0.717; EXP-010 MLP **không** giúp FL, diverge nặng + comm nổ 16-64×. → Trần là biểu diễn, không phải capacity.)*
+- [ ] Nếu cần ưu tiên unsafe recall: cân nhắc class weight / threshold tuning thay vì wd mạnh (vì wd cao làm tụt unsafe recall). *(EXP-009 đã đạt unsafe recall 0.717 không cần wd — ưu tiên thấp hơn giờ.)*
 - [ ] Cải thiện nhãn PPE/compliance (thay proxy `has_core_ppe`) — nhiều khả năng đây mới là trần thật.
 - [ ] Khi nhãn ổn: personalized head / adapter-LoRA / FedBN.

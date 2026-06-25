@@ -15,7 +15,7 @@ from flwr.simulation import start_simulation
 from src.data.embedding import EmbeddingClientDataset, EmbeddingDatasetBundle
 from src.evaluation.metrics import parameter_bytes
 from src.models.embedding_head import (
-    create_embedding_head_model,
+    build_embedding_model,
     get_embedding_head_parameters,
     set_embedding_head_parameters,
 )
@@ -52,11 +52,7 @@ class EmbeddingHeadClient(NumPyClient):
         self.config = config
 
     def fit(self, parameters: NDArrays, config: dict[str, Any]):
-        model = create_embedding_head_model(
-            embedding_dim=self.bundle.embedding_dim,
-            num_classes=self.bundle.num_classes,
-            seed=self.config.seed,
-        )
+        model = build_embedding_model(self.config, self.bundle)
         set_embedding_head_parameters(model, parameters)
         metrics = train_head(
             model=model,
@@ -81,11 +77,7 @@ class EmbeddingHeadClient(NumPyClient):
         )
 
     def evaluate(self, parameters: NDArrays, config: dict[str, Any]):
-        model = create_embedding_head_model(
-            embedding_dim=self.bundle.embedding_dim,
-            num_classes=self.bundle.num_classes,
-            seed=self.config.seed,
-        )
+        model = build_embedding_model(self.config, self.bundle)
         set_embedding_head_parameters(model, parameters)
         metrics = evaluate_model(
             model,
@@ -107,11 +99,7 @@ def run_embedding_federated(
     """Run FedAvg over embedding clients and return JSON-ready metrics."""
 
     start_time = time.perf_counter()
-    initial_model = create_embedding_head_model(
-        embedding_dim=bundle.embedding_dim,
-        num_classes=bundle.num_classes,
-        seed=config.seed,
-    )
+    initial_model = build_embedding_model(config, bundle)
     initial_parameters = get_embedding_head_parameters(initial_model)
     update_bytes = parameter_bytes(initial_parameters)
     strategy = CapturingEmbeddingFedAvg(
@@ -158,11 +146,7 @@ def run_embedding_federated(
         if strategy.latest_parameters is not None
         else initial_parameters
     )
-    final_model = create_embedding_head_model(
-        embedding_dim=bundle.embedding_dim,
-        num_classes=bundle.num_classes,
-        seed=config.seed,
-    )
+    final_model = build_embedding_model(config, bundle)
     set_embedding_head_parameters(final_model, final_parameters)
     global_metrics = evaluate_model(
         final_model,
@@ -193,11 +177,7 @@ def run_embedding_federated(
 
 def _server_evaluate_fn(config: DemoConfig, bundle: EmbeddingDatasetBundle):
     def evaluate(server_round: int, parameters: NDArrays, run_config: dict[str, Any]):
-        model = create_embedding_head_model(
-            embedding_dim=bundle.embedding_dim,
-            num_classes=bundle.num_classes,
-            seed=config.seed,
-        )
+        model = build_embedding_model(config, bundle)
         set_embedding_head_parameters(model, parameters)
         metrics = evaluate_model(
             model,
@@ -217,11 +197,7 @@ def _evaluate_per_client(
 ) -> list[dict[str, Any]]:
     records = []
     for client in bundle.clients:
-        model = create_embedding_head_model(
-            embedding_dim=bundle.embedding_dim,
-            num_classes=bundle.num_classes,
-            seed=config.seed,
-        )
+        model = build_embedding_model(config, bundle)
         set_embedding_head_parameters(model, parameters)
         metrics = evaluate_model(
             model,

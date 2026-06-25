@@ -117,7 +117,7 @@ Global federated confusion matrix: `[[26, 34], [15, 45]]` → safe recall `0.433
 
 ## 7. Bước Tiếp Theo (Next Steps)
 - [x] Tăng số round/epoch (vẫn OOM-safe) để xem federated có vượt local-only khi train đủ lâu không. *(Đã làm: EXP-007 — 10 round/5 epoch, federated vượt local-only.)*
-- [ ] Thử head 2 lớp (MLP nhỏ) hoặc chuẩn hóa embedding (L2-normalize) để cải thiện safe recall.
+- [x] Thử head 2 lớp (MLP nhỏ) hoặc chuẩn hóa embedding (L2-normalize) để cải thiện safe recall. *(Đã làm: EXP-009 L2-norm + EXP-010 MLP. L2-norm là lever đúng; MLP không giúp FL.)*
 - [ ] Quét nhanh learning rate / số round như một ablation nhỏ trên manifest EXP-006 cố định.
 - [ ] Cải thiện định nghĩa nhãn PPE/compliance thay vì proxy `has_core_ppe` trước khi kết luận nghiệp vụ.
 - [ ] Sau khi nhãn ổn hơn, mới xét personalized head, adapter/LoRA, FedBN hoặc giảm communication.

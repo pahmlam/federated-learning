@@ -12,7 +12,7 @@ from src.evaluation.metrics import (
     weighted_average_metric,
 )
 from src.models.embedding_head import (
-    create_embedding_head_model,
+    build_embedding_model,
     get_embedding_head_parameters,
 )
 from src.training.trainer import evaluate_model, train_head
@@ -25,11 +25,7 @@ def run_embedding_centralized(
     bundle: EmbeddingDatasetBundle,
 ) -> dict[str, Any]:
     start_time = time.perf_counter()
-    model = create_embedding_head_model(
-        embedding_dim=bundle.embedding_dim,
-        num_classes=bundle.num_classes,
-        seed=config.seed,
-    )
+    model = build_embedding_model(config, bundle)
     update_size = parameter_bytes(get_embedding_head_parameters(model))
     train_head(
         model=model,
@@ -87,20 +83,12 @@ def run_embedding_local_only(
     bundle: EmbeddingDatasetBundle,
 ) -> dict[str, Any]:
     start_time = time.perf_counter()
-    initial_model = create_embedding_head_model(
-        embedding_dim=bundle.embedding_dim,
-        num_classes=bundle.num_classes,
-        seed=config.seed,
-    )
+    initial_model = build_embedding_model(config, bundle)
     update_size = parameter_bytes(get_embedding_head_parameters(initial_model))
     positive_class_id = _unsafe_class_id(bundle)
     per_client = []
     for client in bundle.clients:
-        model = create_embedding_head_model(
-            embedding_dim=bundle.embedding_dim,
-            num_classes=bundle.num_classes,
-            seed=config.seed,
-        )
+        model = build_embedding_model(config, bundle)
         train_head(
             model=model,
             train_x=client.train_x,

@@ -56,6 +56,17 @@ def main() -> None:
     parser.add_argument("--batch-size", type=int, default=None)
     parser.add_argument("--lr", type=float, default=None)
     parser.add_argument("--weight-decay", type=float, default=None)
+    parser.add_argument(
+        "--normalize-embedding",
+        action="store_true",
+        help="L2-normalize embeddings before the head (cosine-style; EXP-009).",
+    )
+    parser.add_argument(
+        "--head-hidden-dim",
+        type=int,
+        default=None,
+        help="Hidden width for a 2-layer MLP head; omit for a linear head (EXP-010).",
+    )
     args = parser.parse_args()
 
     bundle = load_embedding_dataset_bundle(args.artifact)
@@ -97,6 +108,12 @@ def main() -> None:
             if args.weight_decay is not None
             else config.weight_decay
         ),
+        normalize_embedding=args.normalize_embedding or config.normalize_embedding,
+        head_hidden_dim=(
+            args.head_hidden_dim
+            if args.head_hidden_dim is not None
+            else config.head_hidden_dim
+        ),
     )
     _validate_overrides(config)
     output_dir = Path(config.output_dir)
@@ -129,6 +146,8 @@ def main() -> None:
             "centralized_epochs": config.centralized_epochs,
             "num_rounds": config.num_rounds,
             "weight_decay": config.weight_decay,
+            "normalize_embedding": config.normalize_embedding,
+            "head_hidden_dim": config.head_hidden_dim,
             "num_workers": config.num_workers,
             "client_num_cpus": config.client_num_cpus,
             "ray_num_cpus": config.ray_num_cpus,

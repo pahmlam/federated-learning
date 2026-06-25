@@ -6,9 +6,14 @@ import sys
 
 from src.data.embedding import embedding_artifact_to_bundle
 from src.data.real_data import EmbeddingArtifact, save_embedding_artifact
+import torch
+
 from src.models.embedding_head import (
+    build_embedding_model,
     create_embedding_head_model,
     embedding_trainable_parameter_names,
+    get_embedding_head_parameters,
+    set_embedding_head_parameters,
 )
 from src.training.embedding_baselines import (
     run_embedding_centralized,
@@ -92,6 +97,54 @@ def test_embedding_head_model_trains_only_head():
     model = create_embedding_head_model(embedding_dim=3, num_classes=2, seed=2026)
 
     assert embedding_trainable_parameter_names(model) == ["head.weight", "head.bias"]
+
+
+def test_embedding_head_l2_normalizes_input_when_enabled():
+    model = create_embedding_head_model(
+        embedding_dim=3, num_classes=2, seed=2026, normalize_input=True
+    )
+    # Same direction, different magnitude -> identical logits after L2-normalize.
+    scaled = model(torch.tensor([[3.0, 0.0, 0.0]]))
+    unit = model(torch.tensor([[1.0, 0.0, 0.0]]))
+    assert torch.allclose(scaled, unit, atol=1e-6)
+
+
+def test_embedding_head_does_not_normalize_by_default():
+    model = create_embedding_head_model(embedding_dim=3, num_classes=2, seed=2026)
+    scaled = model(torch.tensor([[3.0, 0.0, 0.0]]))
+    unit = model(torch.tensor([[1.0, 0.0, 0.0]]))
+    assert not torch.allclose(scaled, unit, atol=1e-6)
+
+
+def test_embedding_mlp_head_exposes_all_layer_parameters():
+    model = create_embedding_head_model(
+        embedding_dim=3, num_classes=2, seed=2026, hidden_dim=8
+    )
+    params = get_embedding_head_parameters(model)
+    # Two Linear layers -> 4 arrays (weight + bias each).
+    assert len(params) == 4
+    assert len(embedding_trainable_parameter_names(model)) == 4
+    # Round-trip through FedAvg-style serialization must succeed.
+    set_embedding_head_parameters(model, params)
+
+
+def test_set_embedding_head_parameters_rejects_wrong_count():
+    model = create_embedding_head_model(
+        embedding_dim=3, num_classes=2, seed=2026, hidden_dim=8
+    )
+    with pytest.raises(ValueError, match="Expected 4 head parameter arrays"):
+        set_embedding_head_parameters(model, get_embedding_head_parameters(model)[:2])
+
+
+def test_build_embedding_model_reads_capacity_from_config():
+    bundle = embedding_artifact_to_bundle(_tiny_artifact(), artifact_path="tiny.npz")
+    config = DemoConfig(
+        normalize_embedding=True,
+        head_hidden_dim=8,
+    )
+    model = build_embedding_model(config, bundle)
+    assert model.normalize_input is True
+    assert len(get_embedding_head_parameters(model)) == 4
 
 
 def test_train_head_weight_decay_shrinks_head_weight_norm():
@@ -266,3 +319,32 @@ def test_run_embedding_demo_accepts_weight_decay(tmp_path):
 
     summary = json.loads((output_dir / "summary.json").read_text(encoding="utf-8"))
     assert summary["config"]["weight_decay"] == 0.01
+
+
+def test_run_embedding_demo_accepts_capacity_flags(tmp_path):
+    artifact_path = tmp_path / "artifact.npz"
+    output_dir = tmp_path / "EXP-010"
+    save_embedding_artifact(artifact_path, _tiny_artifact())
+
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/run_embedding_demo.py",
+            "--mode",
+            "centralized",
+            "--artifact",
+            str(artifact_path),
+            "--profile",
+            "oom-safe",
+            "--output-dir",
+            str(output_dir),
+            "--normalize-embedding",
+            "--head-hidden-dim",
+            "8",
+        ],
+        check=True,
+    )
+
+    summary = json.loads((output_dir / "summary.json").read_text(encoding="utf-8"))
+    assert summary["config"]["normalize_embedding"] is True
+    assert summary["config"]["head_hidden_dim"] == 8

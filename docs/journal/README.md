@@ -37,6 +37,8 @@ Dành cho cả **Codex**, **Claude Code** (hoặc các AI Coding Agent tương t
 | **EXP-006** | 2026-06-25 | PPE real ResNet18 scaled baseline (480/3, manifest sinh tự động) | Thành công | 0.5583/0.5173 | 0.6250/0.6173 | 0.5917/0.5812 | [Chi tiết](file:///Users/phamtunglam/Documents/VNPT/federated-learning/docs/journal/2026-06-25_EXP-006_ppe-real-resnet18-scaled-baseline.md) |
 | **EXP-007** | 2026-06-25 | PPE real ResNet18 train-longer baseline (480/3, 10 round) | Thành công | 0.6000/0.5960 | 0.6000/0.5908 | 0.6083/0.6081 | [Chi tiết](file:///Users/phamtunglam/Documents/VNPT/federated-learning/docs/journal/2026-06-25_EXP-007_ppe-real-resnet18-train-longer-baseline.md) |
 | **EXP-008** | 2026-06-25 | PPE embedding weight-decay regularization (480/3, wd=1e-1) | Thành công | 0.5750/0.5616 | 0.6083/0.5960 | 0.6167/0.6114 | [Chi tiết](file:///Users/phamtunglam/Documents/VNPT/federated-learning/docs/journal/2026-06-25_EXP-008_ppe-embedding-weight-decay-regularization.md) |
+| **EXP-009** | 2026-06-25 | PPE embedding L2-normalize (cosine-style, 480/3) | Thành công | 0.6250/0.6229 | 0.6750/0.6740 | 0.6000/0.5945 | [Chi tiết](file:///Users/phamtunglam/Documents/VNPT/federated-learning/docs/journal/2026-06-25_EXP-009_ppe-embedding-l2-normalize.md) |
+| **EXP-010** | 2026-06-25 | PPE embedding MLP head capacity sweep (480/3, H=64 headline) | Thành công | 0.6333/0.6312 | 0.6667/0.6643 | 0.6333/0.6329 | [Chi tiết](file:///Users/phamtunglam/Documents/VNPT/federated-learning/docs/journal/2026-06-25_EXP-010_ppe-embedding-mlp-head-capacity.md) |
 
 *(Khi chạy thử nghiệm thực tế, hãy thay thế hoặc thêm dòng mới bên dưới dòng mẫu này).*
 

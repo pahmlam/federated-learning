@@ -57,3 +57,27 @@ def test_weight_decay_is_preserved_under_oom_safe_profile():
 def test_negative_weight_decay_raises_value_error():
     with pytest.raises(ValueError, match="weight_decay must be >= 0"):
         DemoConfig(weight_decay=-0.1).normalized()
+
+
+def test_capacity_knobs_default_off():
+    config = DemoConfig()
+    assert config.normalize_embedding is False
+    assert config.head_hidden_dim is None
+    normalized = config.normalized()
+    assert normalized.normalize_embedding is False
+    assert normalized.head_hidden_dim is None
+
+
+def test_capacity_knobs_preserved_under_oom_safe_profile():
+    config = DemoConfig(
+        profile="oom-safe",
+        normalize_embedding=True,
+        head_hidden_dim=64,
+    ).normalized()
+    assert config.normalize_embedding is True
+    assert config.head_hidden_dim == 64
+
+
+def test_zero_head_hidden_dim_raises_value_error():
+    with pytest.raises(ValueError, match="head_hidden_dim must be >= 1"):
+        DemoConfig(head_hidden_dim=0).normalized()

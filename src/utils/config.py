@@ -31,6 +31,8 @@ class DemoConfig:
     centralized_epochs: int = 4
     lr: float = 0.05
     weight_decay: float = 0.0
+    normalize_embedding: bool = False
+    head_hidden_dim: int | None = None
     num_rounds: int = 3
     num_workers: int = 0
     client_num_cpus: float = 1.0
@@ -141,6 +143,8 @@ def _validate_config(config: DemoConfig) -> None:
         raise ValueError("num_workers must be >= 0")
     if config.weight_decay < 0:
         raise ValueError("weight_decay must be >= 0")
+    if config.head_hidden_dim is not None and config.head_hidden_dim < 1:
+        raise ValueError("head_hidden_dim must be >= 1 when set")
     if config.client_num_cpus <= 0:
         raise ValueError("client_num_cpus must be > 0")
     if config.ray_num_cpus is not None and config.ray_num_cpus < 1:

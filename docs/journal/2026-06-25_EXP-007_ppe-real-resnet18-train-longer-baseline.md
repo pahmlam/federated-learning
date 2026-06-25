@@ -90,7 +90,7 @@ Global federated confusion matrix: `[[38, 22], [25, 35]]` → safe recall `0.633
 
 ## 7. Bước Tiếp Theo (Next Steps)
 - [x] Vì tăng budget đã chững và val loss diverge: thử **chống overfit/regularize** thay vì train thêm — L2-normalize embedding, weight decay, hoặc lr nhỏ hơn + early stopping theo val loss. *(Đã làm: EXP-008 — weight_decay, hết diverge ở wd=1e-1; L2-norm/MLP/early-stopping vẫn pending.)*
-- [ ] Thử **head 2 lớp (MLP nhỏ)** xem có vượt trần ~0.60 macro-F1 không.
+- [x] Thử **head 2 lớp (MLP nhỏ)** xem có vượt trần ~0.60 macro-F1 không. *(Đã làm: EXP-010 — MLP H∈{32,64,128} không nâng federated macro-F1 và làm val loss diverge nặng + comm cost nổ 16-64×. Lever đúng là L2-norm/EXP-009, không phải capacity.)*
 - [ ] Ablation nhỏ lr × round trên manifest EXP-006 cố định để xác định điểm dừng tối ưu (tránh round thừa tốn comm).
 - [ ] Cải thiện nhãn PPE/compliance (thay proxy `has_core_ppe`) trước khi kết luận nghiệp vụ.
 - [ ] Sau khi nhãn ổn: xét personalized head, adapter/LoRA, FedBN — đặc biệt khi đã thấy FedAvg regularize tốt hơn local-only.
