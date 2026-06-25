@@ -2,7 +2,7 @@
 - **Mã Thử Nghiệm:** EXP-006
 - **Ngày Thực Hiện:** 2026-06-25
 - **Trạng Thái:** Thành công
-- **Git Commit Hash:** `chưa commit`
+- **Git Commit Hash:** `committed`
 
 ---
 
@@ -11,7 +11,7 @@
 - Khắc phục gap tái lập của `EXP-004`/`EXP-005`: manifest 240 dòng trước đây làm tay. EXP-006 sinh manifest bằng **script có seed cố định** (`scripts/generate_ppe_manifest.py`).
 - Giữ nguyên pipeline ảnh thật: VOC annotation proxy -> frozen ResNet18 embedding -> train classifier head, và giữ nguyên cấu trúc 3 site + kiểu non-IID label skew của EXP-005 để so sánh công bằng.
 
-## 2. Cấu Hình & Thiết Lập (Configuration)
+## 2. Cấu Hình & Thiết Lập (Configuration)ßß
 - **Bài toán:** PPE binary classification smoke (`safe` / `unsafe`).
 - **Dữ Liệu & Phân Chia Client (Data & Partition):**
   - Dataset root local: `data/ppe` (pool 8,099 VOC annotation / 8,077 ảnh; EXP-006 dùng 480, ~5.9%).
@@ -116,7 +116,7 @@ Global federated confusion matrix: `[[26, 34], [15, 45]]` → safe recall `0.433
   - `outputs/EXP-006/summary.json`
 
 ## 7. Bước Tiếp Theo (Next Steps)
-- [ ] Tăng số round/epoch (vẫn OOM-safe) để xem federated có vượt local-only khi train đủ lâu không.
+- [x] Tăng số round/epoch (vẫn OOM-safe) để xem federated có vượt local-only khi train đủ lâu không. *(Đã làm: EXP-007 — 10 round/5 epoch, federated vượt local-only.)*
 - [ ] Thử head 2 lớp (MLP nhỏ) hoặc chuẩn hóa embedding (L2-normalize) để cải thiện safe recall.
 - [ ] Quét nhanh learning rate / số round như một ablation nhỏ trên manifest EXP-006 cố định.
 - [ ] Cải thiện định nghĩa nhãn PPE/compliance thay vì proxy `has_core_ppe` trước khi kết luận nghiệp vụ.

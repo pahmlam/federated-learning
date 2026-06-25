@@ -2,7 +2,7 @@
 - **Mã Thử Nghiệm:** EXP-001
 - **Ngày Thực Hiện:** 2026-06-12
 - **Trạng Thái:** Thành công
-- **Git Commit Hash:** `chưa commit`
+- **Git Commit Hash:** `committed`
 
 ---
 

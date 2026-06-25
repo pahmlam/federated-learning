@@ -2,7 +2,7 @@
 - **Mã Thử Nghiệm:** EXP-005
 - **Ngày Thực Hiện:** 2026-06-22
 - **Trạng Thái:** Thành công
-- **Git Commit Hash:** `chưa commit`
+- **Git Commit Hash:** `committed`
 
 ---
 
@@ -89,6 +89,6 @@ Kết quả dưới đây là mode `federated` sau 3 round.
 
 ## 7. Bước Tiếp Theo (Next Steps)
 - [ ] Cải thiện định nghĩa nhãn PPE/compliance thay vì chỉ dùng proxy `has_core_ppe`.
-- [ ] Chạy thêm một baseline với nhiều mẫu/client hơn nhưng vẫn giữ OOM-safe.
+- [x] Chạy thêm một baseline với nhiều mẫu/client hơn nhưng vẫn giữ OOM-safe. *(Đã làm: EXP-006, 480 mẫu/3 site.)*
 - [ ] Ghi rõ trong báo cáo rằng kết quả hiện tại chứng minh pipeline và baseline, chưa chứng minh chất lượng nghiệp vụ.
 - [ ] Sau khi nhãn ổn hơn, mới xét personalized head, adapter/LoRA, FedBN hoặc giảm communication.

@@ -89,7 +89,7 @@ Global federated confusion matrix: `[[38, 22], [25, 35]]` → safe recall `0.633
 - **Đường dẫn outputs:** `outputs/EXP-007/` (`centralized_metrics.json`, `local_only_metrics.json`, `federated_metrics.json`, `summary.json`).
 
 ## 7. Bước Tiếp Theo (Next Steps)
-- [ ] Vì tăng budget đã chững và val loss diverge: thử **chống overfit/regularize** thay vì train thêm — L2-normalize embedding, weight decay, hoặc lr nhỏ hơn + early stopping theo val loss.
+- [x] Vì tăng budget đã chững và val loss diverge: thử **chống overfit/regularize** thay vì train thêm — L2-normalize embedding, weight decay, hoặc lr nhỏ hơn + early stopping theo val loss. *(Đã làm: EXP-008 — weight_decay, hết diverge ở wd=1e-1; L2-norm/MLP/early-stopping vẫn pending.)*
 - [ ] Thử **head 2 lớp (MLP nhỏ)** xem có vượt trần ~0.60 macro-F1 không.
 - [ ] Ablation nhỏ lr × round trên manifest EXP-006 cố định để xác định điểm dừng tối ưu (tránh round thừa tốn comm).
 - [ ] Cải thiện nhãn PPE/compliance (thay proxy `has_core_ppe`) trước khi kết luận nghiệp vụ.
