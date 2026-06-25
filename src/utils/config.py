@@ -30,6 +30,7 @@ class DemoConfig:
     local_epochs: int = 2
     centralized_epochs: int = 4
     lr: float = 0.05
+    weight_decay: float = 0.0
     num_rounds: int = 3
     num_workers: int = 0
     client_num_cpus: float = 1.0
@@ -138,6 +139,8 @@ def _validate_config(config: DemoConfig) -> None:
         raise ValueError("num_rounds must be >= 1")
     if config.num_workers < 0:
         raise ValueError("num_workers must be >= 0")
+    if config.weight_decay < 0:
+        raise ValueError("weight_decay must be >= 0")
     if config.client_num_cpus <= 0:
         raise ValueError("client_num_cpus must be > 0")
     if config.ray_num_cpus is not None and config.ray_num_cpus < 1:

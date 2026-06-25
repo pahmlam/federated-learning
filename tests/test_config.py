@@ -1,6 +1,6 @@
 import pytest
 
-from src.utils.config import build_config
+from src.utils.config import DemoConfig, build_config
 
 
 def test_quick_profile_matches_legacy_quick_alias():
@@ -42,3 +42,18 @@ def test_oom_safe_profile_respects_output_override():
 def test_invalid_profile_raises_value_error():
     with pytest.raises(ValueError, match="Unsupported profile"):
         build_config(profile="large")
+
+
+def test_weight_decay_defaults_to_zero():
+    assert DemoConfig().weight_decay == 0.0
+    assert DemoConfig().normalized().weight_decay == 0.0
+
+
+def test_weight_decay_is_preserved_under_oom_safe_profile():
+    config = DemoConfig(profile="oom-safe", weight_decay=0.01).normalized()
+    assert config.weight_decay == 0.01
+
+
+def test_negative_weight_decay_raises_value_error():
+    with pytest.raises(ValueError, match="weight_decay must be >= 0"):
+        DemoConfig(weight_decay=-0.1).normalized()

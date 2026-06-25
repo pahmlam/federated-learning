@@ -40,6 +40,7 @@ def run_embedding_centralized(
         lr=config.lr,
         seed=config.seed,
         num_workers=config.num_workers,
+        weight_decay=config.weight_decay,
     )
     positive_class_id = _unsafe_class_id(bundle)
     global_metrics = evaluate_model(
@@ -109,6 +110,7 @@ def run_embedding_local_only(
             lr=config.lr,
             seed=config.seed + client.client_id,
             num_workers=config.num_workers,
+            weight_decay=config.weight_decay,
         )
         metrics = evaluate_model(
             model,

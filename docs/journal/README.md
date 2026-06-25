@@ -36,6 +36,7 @@ Dành cho cả **Codex**, **Claude Code** (hoặc các AI Coding Agent tương t
 | **EXP-005** | 2026-06-22 | PPE real ResNet18 stability baseline | Thành công | 0.5167/0.5055 | 0.6833/0.6832 | 0.7000/0.6997 | [Chi tiết](file:///Users/phamtunglam/Documents/VNPT/federated-learning/docs/journal/2026-06-22_EXP-005_ppe-real-resnet18-stability-baseline.md) |
 | **EXP-006** | 2026-06-25 | PPE real ResNet18 scaled baseline (480/3, manifest sinh tự động) | Thành công | 0.5583/0.5173 | 0.6250/0.6173 | 0.5917/0.5812 | [Chi tiết](file:///Users/phamtunglam/Documents/VNPT/federated-learning/docs/journal/2026-06-25_EXP-006_ppe-real-resnet18-scaled-baseline.md) |
 | **EXP-007** | 2026-06-25 | PPE real ResNet18 train-longer baseline (480/3, 10 round) | Thành công | 0.6000/0.5960 | 0.6000/0.5908 | 0.6083/0.6081 | [Chi tiết](file:///Users/phamtunglam/Documents/VNPT/federated-learning/docs/journal/2026-06-25_EXP-007_ppe-real-resnet18-train-longer-baseline.md) |
+| **EXP-008** | 2026-06-25 | PPE embedding weight-decay regularization (480/3, wd=1e-1) | Thành công | 0.5750/0.5616 | 0.6083/0.5960 | 0.6167/0.6114 | [Chi tiết](file:///Users/phamtunglam/Documents/VNPT/federated-learning/docs/journal/2026-06-25_EXP-008_ppe-embedding-weight-decay-regularization.md) |
 
 *(Khi chạy thử nghiệm thực tế, hãy thay thế hoặc thêm dòng mới bên dưới dòng mẫu này).*
 

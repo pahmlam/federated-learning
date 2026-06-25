@@ -14,7 +14,12 @@ from src.training.embedding_baselines import (
     run_embedding_centralized,
     run_embedding_local_only,
 )
+from src.training.trainer import train_head
 from src.utils.config import DemoConfig
+
+
+def _head_weight_norm(model) -> float:
+    return float(model.head.weight.detach().norm().item())
 
 
 def _tiny_artifact():
@@ -87,6 +92,36 @@ def test_embedding_head_model_trains_only_head():
     model = create_embedding_head_model(embedding_dim=3, num_classes=2, seed=2026)
 
     assert embedding_trainable_parameter_names(model) == ["head.weight", "head.bias"]
+
+
+def test_train_head_weight_decay_shrinks_head_weight_norm():
+    bundle = embedding_artifact_to_bundle(_tiny_artifact(), artifact_path="tiny.npz")
+    train_x, train_y = bundle.pooled.train_x, bundle.pooled.train_y
+
+    kwargs = dict(epochs=20, batch_size=2, lr=0.1, seed=2026)
+    no_decay = create_embedding_head_model(embedding_dim=3, num_classes=2, seed=2026)
+    train_head(model=no_decay, train_x=train_x, train_y=train_y, weight_decay=0.0, **kwargs)
+
+    decayed = create_embedding_head_model(embedding_dim=3, num_classes=2, seed=2026)
+    train_head(model=decayed, train_x=train_x, train_y=train_y, weight_decay=0.5, **kwargs)
+
+    assert _head_weight_norm(decayed) < _head_weight_norm(no_decay)
+
+
+def test_train_head_defaults_to_no_weight_decay():
+    bundle = embedding_artifact_to_bundle(_tiny_artifact(), artifact_path="tiny.npz")
+    model = create_embedding_head_model(embedding_dim=3, num_classes=2, seed=2026)
+    # Must run without passing weight_decay (default 0.0).
+    metrics = train_head(
+        model=model,
+        train_x=bundle.pooled.train_x,
+        train_y=bundle.pooled.train_y,
+        epochs=1,
+        batch_size=2,
+        lr=0.1,
+        seed=2026,
+    )
+    assert "loss" in metrics
 
 
 def test_embedding_centralized_and_local_only_baselines_run():
@@ -204,3 +239,30 @@ def test_run_embedding_demo_accepts_training_overrides(tmp_path):
     assert summary["config"]["centralized_epochs"] == 3
     assert summary["config"]["num_rounds"] == 3
     assert summary["config"]["batch_size"] == 4
+
+
+def test_run_embedding_demo_accepts_weight_decay(tmp_path):
+    artifact_path = tmp_path / "artifact.npz"
+    output_dir = tmp_path / "EXP-008"
+    save_embedding_artifact(artifact_path, _tiny_artifact())
+
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/run_embedding_demo.py",
+            "--mode",
+            "centralized",
+            "--artifact",
+            str(artifact_path),
+            "--profile",
+            "oom-safe",
+            "--output-dir",
+            str(output_dir),
+            "--weight-decay",
+            "0.01",
+        ],
+        check=True,
+    )
+
+    summary = json.loads((output_dir / "summary.json").read_text(encoding="utf-8"))
+    assert summary["config"]["weight_decay"] == 0.01

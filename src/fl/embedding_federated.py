@@ -67,6 +67,7 @@ class EmbeddingHeadClient(NumPyClient):
             lr=float(config.get("lr", self.config.lr)),
             seed=self.config.seed + self.client_data.client_id,
             num_workers=self.config.num_workers,
+            weight_decay=float(config.get("weight_decay", self.config.weight_decay)),
         )
         updated = get_embedding_head_parameters(model)
         return (
@@ -126,6 +127,7 @@ def run_embedding_federated(
             "local_epochs": config.local_epochs,
             "batch_size": config.batch_size,
             "lr": config.lr,
+            "weight_decay": config.weight_decay,
         },
         fit_metrics_aggregation_fn=_weighted_fit_metrics,
         evaluate_metrics_aggregation_fn=_weighted_eval_metrics,

@@ -55,6 +55,7 @@ def main() -> None:
     parser.add_argument("--num-rounds", type=int, default=None)
     parser.add_argument("--batch-size", type=int, default=None)
     parser.add_argument("--lr", type=float, default=None)
+    parser.add_argument("--weight-decay", type=float, default=None)
     args = parser.parse_args()
 
     bundle = load_embedding_dataset_bundle(args.artifact)
@@ -91,6 +92,11 @@ def main() -> None:
         num_rounds=args.num_rounds if args.num_rounds is not None else config.num_rounds,
         batch_size=args.batch_size if args.batch_size is not None else config.batch_size,
         lr=args.lr if args.lr is not None else config.lr,
+        weight_decay=(
+            args.weight_decay
+            if args.weight_decay is not None
+            else config.weight_decay
+        ),
     )
     _validate_overrides(config)
     output_dir = Path(config.output_dir)
@@ -122,6 +128,7 @@ def main() -> None:
             "local_epochs": config.local_epochs,
             "centralized_epochs": config.centralized_epochs,
             "num_rounds": config.num_rounds,
+            "weight_decay": config.weight_decay,
             "num_workers": config.num_workers,
             "client_num_cpus": config.client_num_cpus,
             "ray_num_cpus": config.ray_num_cpus,

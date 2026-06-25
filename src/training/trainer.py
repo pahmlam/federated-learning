@@ -18,6 +18,7 @@ def train_head(
     lr: float,
     seed: int,
     num_workers: int = 0,
+    weight_decay: float = 0.0,
 ) -> dict[str, Any]:
     model.train()
     generator = torch.Generator().manual_seed(seed)
@@ -32,6 +33,7 @@ def train_head(
     optimizer = torch.optim.SGD(
         [param for param in model.parameters() if param.requires_grad],
         lr=lr,
+        weight_decay=weight_decay,
     )
 
     for _ in range(epochs):
