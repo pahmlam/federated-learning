@@ -71,6 +71,6 @@ Kết quả dưới đây là mode `federated` sau 1 round.
   - `outputs/EXP-002/summary.json`
 
 ## 7. Bước Tiếp Theo (Next Steps)
-- [ ] Thiết kế dataset loader thật theo hướng lazy-load, không load toàn bộ ảnh/video vào RAM.
-- [ ] Thiết kế bước precompute embeddings bằng frozen backbone trước khi train head/adapter trên real data.
-- [ ] Khi chuyển sang face/PPE, chạy lại profile nhỏ tương tự trước khi tăng client, batch, round hoặc dataset size.
+- [x] Thiết kế dataset loader thật theo hướng lazy-load, không load toàn bộ ảnh/video vào RAM. *(Đã làm: manifest đọc metadata-only + precompute đọc ảnh theo batch — EXP-004.)*
+- [x] Thiết kế bước precompute embeddings bằng frozen backbone trước khi train head/adapter trên real data. *(Đã làm: `scripts/precompute_embeddings.py` frozen ResNet18 — EXP-004.)*
+- [x] Khi chuyển sang face/PPE, chạy lại profile nhỏ tương tự trước khi tăng client, batch, round hoặc dataset size. *(PPE: EXP-004 smoke trước khi scale EXP-006; face: chưa bắt đầu.)*
