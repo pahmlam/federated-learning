@@ -6,7 +6,11 @@ import time
 from typing import Any
 
 from src.data.embedding import EmbeddingDatasetBundle
-from src.evaluation.metrics import parameter_bytes, weighted_average_metric
+from src.evaluation.metrics import (
+    aggregate_confusion_metrics,
+    parameter_bytes,
+    weighted_average_metric,
+)
 from src.models.embedding_head import (
     create_embedding_head_model,
     get_embedding_head_parameters,
@@ -58,7 +62,7 @@ def run_embedding_centralized(
                 "client_label": client.client_label,
                 "num_examples": int(client.val_y.numel()),
                 "label_histogram": client.label_histogram,
-                **_float_metrics(metrics),
+                **_json_metrics(metrics),
             }
         )
 
@@ -118,7 +122,7 @@ def run_embedding_local_only(
                 "client_label": client.client_label,
                 "num_examples": int(client.val_y.numel()),
                 "label_histogram": client.label_histogram,
-                **_float_metrics(metrics),
+                **_json_metrics(metrics),
             }
         )
 
@@ -126,7 +130,7 @@ def run_embedding_local_only(
         {
             "mode": "local-only",
             "profile": config.profile,
-            "global": weighted_average_metric(per_client),
+            "global": _local_only_global_metrics(per_client),
             "per_client": per_client,
             "training_time_sec": time.perf_counter() - start_time,
             "update_size_bytes": update_size,
@@ -158,5 +162,14 @@ def _unsafe_class_id(bundle: EmbeddingDatasetBundle) -> int | None:
     return bundle.label_mapping.get("unsafe")
 
 
-def _float_metrics(metrics: dict[str, float]) -> dict[str, float]:
-    return {name: float(value) for name, value in metrics.items()}
+def _local_only_global_metrics(per_client: list[dict[str, Any]]) -> dict[str, Any]:
+    metrics: dict[str, Any] = weighted_average_metric(per_client)
+    metrics.update(aggregate_confusion_metrics(per_client))
+    return metrics
+
+
+def _json_metrics(metrics: dict[str, Any]) -> dict[str, Any]:
+    return {
+        name: float(value) if isinstance(value, (int, float)) else value
+        for name, value in metrics.items()
+    }

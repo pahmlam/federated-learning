@@ -33,6 +33,7 @@ Dành cho cả **Codex**, **Claude Code** (hoặc các AI Coding Agent tương t
 | **EXP-002** | 2026-06-18 | OOM-safe single-machine smoke profile | Thành công | 0.6207 | 0.9310 | 0.3448 | [Chi tiết](file:///Users/phamtunglam/Documents/VNPT/federated-learning/docs/journal/2026-06-18_EXP-002_oom-safe-single-machine-smoke.md) |
 | **EXP-003** | 2026-06-18 | PPE embedding dry-run baseline | Thành công | 0.5000 | 0.0000 | 0.5000 | [Chi tiết](file:///Users/phamtunglam/Documents/VNPT/federated-learning/docs/journal/2026-06-18_EXP-003_ppe-embedding-dry-run-baseline.md) |
 | **EXP-004** | 2026-06-22 | PPE real ResNet18 embedding smoke | Thành công | 0.4667/0.4661 | 0.5000/0.3206 | 0.5000/0.3333 | [Chi tiết](file:///Users/phamtunglam/Documents/VNPT/federated-learning/docs/journal/2026-06-22_EXP-004_ppe-real-resnet18-embedding-smoke.md) |
+| **EXP-005** | 2026-06-22 | PPE real ResNet18 stability baseline | Thành công | 0.5167/0.5055 | 0.6833/0.6832 | 0.7000/0.6997 | [Chi tiết](file:///Users/phamtunglam/Documents/VNPT/federated-learning/docs/journal/2026-06-22_EXP-005_ppe-real-resnet18-stability-baseline.md) |
 
 *(Khi chạy thử nghiệm thực tế, hãy thay thế hoặc thêm dòng mới bên dưới dòng mẫu này).*
 

@@ -50,6 +50,11 @@ def main() -> None:
         help="Experiment ID to write into JSON outputs. Defaults to EXP-* output dir name.",
     )
     parser.add_argument("--seed", type=int, default=2026)
+    parser.add_argument("--local-epochs", type=int, default=None)
+    parser.add_argument("--centralized-epochs", type=int, default=None)
+    parser.add_argument("--num-rounds", type=int, default=None)
+    parser.add_argument("--batch-size", type=int, default=None)
+    parser.add_argument("--lr", type=float, default=None)
     args = parser.parse_args()
 
     bundle = load_embedding_dataset_bundle(args.artifact)
@@ -73,7 +78,21 @@ def main() -> None:
         num_classes=bundle.num_classes,
         input_dim=bundle.embedding_dim,
         embedding_dim=bundle.embedding_dim,
+        local_epochs=(
+            args.local_epochs
+            if args.local_epochs is not None
+            else config.local_epochs
+        ),
+        centralized_epochs=(
+            args.centralized_epochs
+            if args.centralized_epochs is not None
+            else config.centralized_epochs
+        ),
+        num_rounds=args.num_rounds if args.num_rounds is not None else config.num_rounds,
+        batch_size=args.batch_size if args.batch_size is not None else config.batch_size,
+        lr=args.lr if args.lr is not None else config.lr,
     )
+    _validate_overrides(config)
     output_dir = Path(config.output_dir)
 
     results: dict[str, Any] = {}
@@ -125,6 +144,19 @@ def _resolve_exp_id(output_dir: str, explicit_exp_id: str | None) -> str:
     if output_name.startswith("EXP-"):
         return output_name
     return "EXP-003"
+
+
+def _validate_overrides(config: DemoConfig) -> None:
+    if config.local_epochs < 1:
+        raise ValueError("--local-epochs must be >= 1")
+    if config.centralized_epochs < 1:
+        raise ValueError("--centralized-epochs must be >= 1")
+    if config.num_rounds < 1:
+        raise ValueError("--num-rounds must be >= 1")
+    if config.batch_size < 1:
+        raise ValueError("--batch-size must be >= 1")
+    if config.lr <= 0:
+        raise ValueError("--lr must be > 0")
 
 
 def _summary_for_mode(result: dict[str, Any]) -> dict[str, Any]:

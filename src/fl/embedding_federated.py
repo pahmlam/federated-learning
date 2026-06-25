@@ -233,7 +233,7 @@ def _evaluate_per_client(
                 "client_label": client.client_label,
                 "num_examples": int(client.val_y.numel()),
                 "label_histogram": client.label_histogram,
-                **_float_metrics(metrics),
+                **_json_metrics(metrics),
             }
         )
     return records
@@ -287,16 +287,19 @@ def _unsafe_class_id(bundle: EmbeddingDatasetBundle) -> int | None:
 
 
 def _metric_payload(
-    metrics: dict[str, float],
+    metrics: dict[str, Any],
     exclude: set[str] | None = None,
 ) -> dict[str, float]:
     excluded = exclude or set()
     return {
         name: float(value)
         for name, value in metrics.items()
-        if name not in excluded
+        if name not in excluded and isinstance(value, (int, float))
     }
 
 
-def _float_metrics(metrics: dict[str, float]) -> dict[str, float]:
-    return {name: float(value) for name, value in metrics.items()}
+def _json_metrics(metrics: dict[str, Any]) -> dict[str, Any]:
+    return {
+        name: float(value) if isinstance(value, (int, float)) else value
+        for name, value in metrics.items()
+    }

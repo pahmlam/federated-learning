@@ -165,3 +165,42 @@ def test_run_embedding_demo_exp_id_override_wins(tmp_path):
 
     summary = json.loads((output_dir / "summary.json").read_text(encoding="utf-8"))
     assert summary["experiment"] == "CUSTOM"
+
+
+def test_run_embedding_demo_accepts_training_overrides(tmp_path):
+    artifact_path = tmp_path / "artifact.npz"
+    output_dir = tmp_path / "EXP-005"
+    save_embedding_artifact(artifact_path, _tiny_artifact())
+
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/run_embedding_demo.py",
+            "--mode",
+            "centralized",
+            "--artifact",
+            str(artifact_path),
+            "--profile",
+            "oom-safe",
+            "--output-dir",
+            str(output_dir),
+            "--local-epochs",
+            "3",
+            "--centralized-epochs",
+            "3",
+            "--num-rounds",
+            "3",
+            "--batch-size",
+            "4",
+            "--lr",
+            "0.01",
+        ],
+        check=True,
+    )
+
+    summary = json.loads((output_dir / "summary.json").read_text(encoding="utf-8"))
+    assert summary["experiment"] == "EXP-005"
+    assert summary["config"]["local_epochs"] == 3
+    assert summary["config"]["centralized_epochs"] == 3
+    assert summary["config"]["num_rounds"] == 3
+    assert summary["config"]["batch_size"] == 4
