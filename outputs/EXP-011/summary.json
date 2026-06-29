@@ -1,0 +1,44 @@
+{
+  "config": {
+    "batch_size": 2,
+    "centralized_epochs": 4,
+    "device": "cuda",
+    "image_size": 512,
+    "local_epochs": 2,
+    "lr": 0.005,
+    "num_classes": 9,
+    "num_clients": 3,
+    "num_rounds": 5,
+    "pretrained": true,
+    "seed": 2026
+  },
+  "data_source": "detection",
+  "experiment": "EXP-011",
+  "manifest_path": "configs/datasets/ppe_detection_exp011_manifest.csv",
+  "modes": {
+    "centralized": {
+      "map": 0.11794465780258179,
+      "map_50": 0.2754969298839569,
+      "map_75": 0.07710199058055878
+    },
+    "federated": {
+      "map": 0.09513647605975468,
+      "map_50": 0.23512786130110422,
+      "map_75": 0.06809261068701744
+    },
+    "local-only": {
+      "map": 0.06574244735141595,
+      "map_50": 0.16014384975035986,
+      "map_75": 0.03850318491458893
+    }
+  },
+  "resource_snapshot": {
+    "available": true,
+    "max_rss_bytes": 2699333632,
+    "max_rss_mb": 2574.29,
+    "pid": 1428169,
+    "platform": "Linux-5.4.0-216-generic-x86_64-with-glibc2.31",
+    "source": "resource.getrusage(RUSAGE_SELF)",
+    "timestamp_unix": 1782704268.2840188
+  }
+}

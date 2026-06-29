@@ -1,0 +1,96 @@
+{
+  "communication_cost_bytes": 0,
+  "exp_id": "EXP-011",
+  "global": {
+    "map": 0.06574244735141595,
+    "map_50": 0.16014384975035986,
+    "map_75": 0.03850318491458893
+  },
+  "mode": "local-only",
+  "num_classes": 9,
+  "num_clients": 3,
+  "per_client": [
+    {
+      "client_id": 0,
+      "client_label": "site-a",
+      "label_histogram": {
+        "ear-mufs": 18,
+        "face-guard": 25,
+        "face-mask-medical": 26,
+        "glasses": 73,
+        "gloves": 169,
+        "helmet": 300,
+        "safety-suit": 42,
+        "safety-vest": 98
+      },
+      "map": 0.0960758849978447,
+      "map_50": 0.22362619638442993,
+      "map_75": 0.07052688300609589,
+      "map_per_class": [
+        0.23744438588619232,
+        0.214395672082901,
+        0.16310091316699982,
+        0.0,
+        0.02005939930677414,
+        0.016021601855754852,
+        0.0,
+        0.11758507043123245
+      ],
+      "num_examples": 60
+    },
+    {
+      "client_id": 1,
+      "client_label": "site-b",
+      "label_histogram": {
+        "ear-mufs": 4,
+        "face-guard": 8,
+        "face-mask-medical": 249,
+        "glasses": 74,
+        "gloves": 126,
+        "helmet": 12,
+        "safety-suit": 8,
+        "safety-vest": 57
+      },
+      "map": 0.07286243140697479,
+      "map_50": 0.1817476749420166,
+      "map_75": 0.02936113253235817,
+      "map_per_class": [
+        -1.0,
+        0.1517351120710373,
+        0.0,
+        0.12299013137817383,
+        0.07672823220491409,
+        0.012858697213232517,
+        -1.0
+      ],
+      "num_examples": 60
+    },
+    {
+      "client_id": 2,
+      "client_label": "site-c",
+      "label_histogram": {
+        "ear-mufs": 28,
+        "face-guard": 8,
+        "face-mask-medical": 0,
+        "glasses": 188,
+        "gloves": 111,
+        "helmet": 0,
+        "safety-suit": 9,
+        "safety-vest": 0
+      },
+      "map": 0.028289025649428368,
+      "map_50": 0.07505767792463303,
+      "map_75": 0.015621539205312729,
+      "map_per_class": [
+        0.0,
+        0.04432007297873497,
+        0.04981246590614319,
+        0.04731258749961853,
+        0.0
+      ],
+      "num_examples": 60
+    }
+  ],
+  "training_time_sec": 428.5323081149836,
+  "update_size_bytes": 58204640
+}
