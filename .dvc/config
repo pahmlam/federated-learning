@@ -1,0 +1,4 @@
+[core]
+    remote = itf-storage
+['remote "itf-storage"']
+    url = ssh://ITF-Server/mnt/data/user_data/lampt/FL/data/dvc-storage/federated-learning
