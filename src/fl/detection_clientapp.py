@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from typing import Any
-
 from flwr.app import ArrayRecord, Context, Message, MetricRecord, RecordDict
 from flwr.clientapp import ClientApp
 
@@ -88,7 +86,6 @@ def evaluate(msg: Message, context: Context) -> Message:
     record = {
         "num-examples": len(client.val),
         **{key: float(metrics.get(key, -1.0)) for key in _REPORT_KEYS},
-        "map_per_class": _metric_list(metrics.get("map_per_class")),
     }
     return Message(
         content=RecordDict({"metrics": MetricRecord(record)}),
@@ -113,7 +110,7 @@ def load_detection_client_context(
 def detection_config_from_context(context: Context) -> DetectionConfig:
     """Build detection config, letting node_config override data location."""
 
-    values: dict[str, Any] = dict(context.run_config)
+    values = dict(context.run_config)
     for source, target in (
         ("manifest-path", "manifest-path"),
         ("manifest_path", "manifest-path"),
@@ -156,11 +153,3 @@ def select_detection_client(
         context.node_config.get("partition_id", context.node_id),
     )
     return bundle.clients[int(partition) % len(bundle.clients)]
-
-
-def _metric_list(value: Any) -> list[float]:
-    if value is None:
-        return []
-    if isinstance(value, list):
-        return [float(item) for item in value]
-    return [float(value)]

@@ -32,6 +32,7 @@ Thư mục này dùng **một file duy nhất** (`docs/journal/README.md`) để
 | **EXP-009** | 2026-06-25 | PPE embedding L2-normalize (cosine-style, 480/3) | Thành công | 0.6250/0.6229 | 0.6750/0.6740 | 0.6000/0.5945 | [Chi tiết](#exp-009) |
 | **EXP-010** | 2026-06-25 | PPE embedding MLP head capacity sweep (480/3, H=64 headline) | Thành công | 0.6333/0.6312 | 0.6667/0.6643 | 0.6333/0.6329 | [Chi tiết](#exp-010) |
 | **EXP-011** | 2026-06-29 | PPE detection GPU simulation baseline (Faster R-CNN head-only) | Thành công | mAP 0.1179 / mAP50 0.2755 | mAP 0.0657 / mAP50 0.1601 | mAP 0.0951 / mAP50 0.2351 | [Chi tiết](#exp-011) |
+| **EXP-012-smoke** | 2026-06-29 | PPE detection real deployment smoke: Mac SuperLink + 2 Colab SuperNodes | Thành công | N/A | N/A | mAP 0.0169 / mAP50 0.0498 | [Chi tiết](#exp-012-smoke-colab2) |
 | **WIP** | 2026-06-25 | PPE detection pivot + federated deployment + DVC sync | Đang làm | N/A | N/A | N/A | [Chi tiết](#wip-detection-pivot) |
 
 ## 2026-06-12
@@ -1031,7 +1032,7 @@ Việc còn lại chính: **Phase B deployment thật** sau EXP-011. Dữ liệu
 
 #### 2. Cấu Hình & Thiết Lập (Configuration)
 - **Bài toán:** PPE object detection, 8 lớp PPE core + background = 9 lớp.
-- **Model:** `fasterrcnn_mobilenet_v3_large_fpn`, pretrained, freeze backbone + FPN, train detection head.
+- **Model setup:** `fasterrcnn_mobilenet_v3_large_fpn` pretrained từ TorchVision/COCO. Head COCO gốc được thay/khởi tạo lại cho 9 class (`background` + 8 PPE). Backbone + FPN frozen; trainable chính là RPN head + ROI box head/predictor. FedAvg chỉ serialize và aggregate detection-head parameters, không gửi toàn bộ Faster R-CNN.
 - **Dữ liệu & phân chia client:**
   - Manifest: `configs/datasets/ppe_detection_exp011_manifest.csv`.
   - Root dataset: `data/ppe`.
@@ -1139,3 +1140,137 @@ Per-class AP của mode `federated` sau 5 round:
 - [x] Phân tích per-class AP sâu hơn để biết lớp nào kéo mAP xuống, đặc biệt `ear-mufs`, `face-guard`, `safety-suit`.
 - [ ] Chạy thêm một ablation nhỏ nếu cần: giảm round hoặc tăng round nhẹ để xác định trade-off mAP/communication.
 - [ ] Chuẩn bị EXP-012 deployment thật qua Tailscale: Mac SuperLink, Ubuntu RTX3060 + 2 Colab SuperNode, distributed evaluation.
+
+<a id="exp-012-smoke-colab2"></a>
+### EXP-012-smoke — PPE Detection Real Deployment Smoke: Mac SuperLink + 2 Colab SuperNodes
+- **Mã Thử Nghiệm:** EXP-012-smoke-colab2
+- **Ngày Thực Hiện:** 2026-06-29
+- **Trạng Thái:** Thành công sau rerun
+- **Flower Run ID thành công:** `6660954678908856684`
+- **Flower Run ID lỗi đã phân tích:** `822420666171934493`
+- **Git Commit Hash:** `[pending]`
+
+---
+
+#### 1. Mục Tiêu (Objective)
+- Kiểm tra deployment thật qua Flower Deployment Runtime trước khi quay lại topology 3-site đầy đủ.
+- Xác nhận Mac local có thể làm SuperLink, còn Colab có thể làm SuperNode qua Tailscale userspace + SOCKS proxy.
+- Chạy smoke FedAvg 1 round với 2 site (`site-b`, `site-c`) để kiểm tra luồng gửi model head, train local, trả update và chuẩn bị evaluate.
+
+#### 2. Cấu Hình & Thiết Lập (Configuration)
+- **Topology thực tế đang dùng:**
+  - Server/SuperLink: Mac local, IP Tailscale `100.100.58.9`, listen `0.0.0.0:9092` Fleet API và `0.0.0.0:9093` Control API.
+  - Client/SuperNode 1: Google Colab `site-b`.
+  - Client/SuperNode 2: Google Colab `site-c`.
+- **Topology ban đầu bị điều chỉnh:**
+  - Ubuntu RTX3060 tạm bỏ khỏi smoke vì user không có quyền `sudo` để cài/join Tailscale.
+  - Colab runtime không có kernel TUN (`modprobe: FATAL: Module tun not found`) nên không dùng được Tailscale interface thật.
+  - Workaround đang dùng: `tailscaled --tun=userspace-networking --socks5-server=127.0.0.1:1055` + `proxychains4 flower-supernode`.
+- **Run config submit từ Mac:**
+  - `exp-id="EXP-012-smoke-colab2-rerun"` ở run thành công.
+  - `output-dir="outputs/EXP-012-smoke-colab2-rerun"` ở run thành công.
+  - `num-clients=2`
+  - `num-rounds=1`
+  - `local-epochs=1`
+  - `batch-size=2`
+  - `image-size=512`
+  - `lr=0.005`
+  - `device="auto"`
+  - `num-workers=0`
+- **Model setup:** `fasterrcnn_mobilenet_v3_large_fpn` pretrained từ TorchVision/COCO. Head COCO gốc được thay/khởi tạo lại cho 9 class (`background` + 8 PPE). Backbone + FPN frozen; trainable chính là RPN head + ROI box head/predictor. FedAvg chỉ serialize và aggregate detection-head parameters, không gửi toàn bộ Faster R-CNN.
+- **Update size Flower báo:** `ArrayRecord (55.51 MB)` cho detection head.
+
+#### 3. Kết Quả (Results)
+- SuperLink trên Mac khởi động thành công:
+  - Control API: `0.0.0.0:9093`
+  - ServerAppIo API: `0.0.0.0:9091`
+  - Fleet API: `0.0.0.0:9092`
+- Cả hai Colab SuperNode đã connect qua proxychains:
+  - `100.100.58.9:9092 ... OK`
+  - `Fleet.ActivateNode` thành công.
+  - Node IDs quan sát được: `17879651046990424781`, `7895697973617748869`.
+- Flower run đã start:
+  - Run ID: `822420666171934493`.
+  - Server sampled đủ 2/2 node: `configure_train: Sampled 2 nodes (out of 2)`.
+- Cả `site-b` và `site-c` đã nhận train message:
+  - `Receiving: train message`
+  - `Start flwr-clientapp process`
+  - `Received successfully`
+- `site-b` đã tải pretrained checkpoint `fasterrcnn_mobilenet_v3_large_fpn-fb6a3cc7.pth` thành công.
+- Cả hai site đã bắt đầu gửi train response:
+  - `Sending: train message`
+- Run thành công `6660954678908856684`:
+  - `aggregate_train: Received 2 results and 0 failures`
+  - Aggregated train loss: `0.5491970074673493`
+  - `aggregate_evaluate: Received 2 results and 0 failures`
+  - Aggregated eval `map`: `0.01694911392405629`
+  - Aggregated eval `map_50`: `0.04981988109648228`
+  - Aggregated eval `map_75`: `0.006521794246509671`
+  - Strategy execution time: `453.51s`
+  - Final global ArrayRecord: `55.510 MB`
+
+| Mode | Round | Train Loss | mAP@0.5:0.95 | mAP@0.5 | mAP@0.75 | Runtime |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| Federated deployment smoke (2 Colab) | 1 | 0.5492 | 0.0169 | 0.0498 | 0.0065 | 453.51s |
+
+#### 4. Incident: Metric Aggregation Bug
+- Run đầu `822420666171934493` đã train/evaluate xong local nhưng fail sau evaluate aggregation với lỗi `ValueError: zip() argument 2 is longer than argument 1`.
+- Root cause: `map_per_class` trong `MetricRecord` là list có độ dài khác nhau giữa client do mỗi validation shard có class hiện diện khác nhau. Flower FedAvg default metric aggregator zip list theo vị trí, nên list không cùng độ dài làm server crash dù train/evaluate local đã xong.
+- Fix: deployment ClientApp chỉ report scalar `map`, `map_50`, `map_75` và `num-examples` trong `MetricRecord`; per-class AP không đưa vào default Flower aggregation. Per-class AP vẫn có thể phân tích qua simulation outputs hoặc cần custom metric aggregation riêng.
+
+#### 5. Lệnh Tái Lập (Reproducibility)
+Mac SuperLink:
+
+```bash
+flower-superlink \
+  --insecure \
+  --fleet-api-address 0.0.0.0:9092 \
+  --control-api-address 0.0.0.0:9093
+```
+
+Colab SuperNode qua Tailscale userspace + proxychains:
+
+```bash
+sudo tailscaled \
+  --state=mem: \
+  --tun=userspace-networking \
+  --socks5-server=127.0.0.1:1055 \
+  > /tmp/tailscaled.log 2>&1 &
+
+sudo tailscale up --authkey=<TAILSCALE_AUTH_KEY> --hostname=colab-site-b
+
+printf "strict_chain\nproxy_dns\n[ProxyList]\nsocks5 127.0.0.1 1055\n" | sudo tee /etc/proxychains4.conf
+
+proxychains4 flower-supernode \
+  --insecure \
+  --superlink 100.100.58.9:9092 \
+  --node-config 'client-id="site-b" manifest-path="data/ppe_site_b/manifest.csv" root-dir="data/ppe_site_b"'
+```
+
+Submit run từ Mac:
+
+```bash
+flwr run . deploy --stream \
+  --run-config 'exp-id="EXP-012-smoke-colab2-rerun" output-dir="outputs/EXP-012-smoke-colab2-rerun" num-clients=2 num-rounds=1 local-epochs=1 batch-size=2 image-size=512 lr=0.005 device="auto" num-workers=0'
+```
+
+Kiểm tra log:
+
+```bash
+flwr list deploy
+flwr log 6660954678908856684 deploy --show
+```
+
+#### 6. Quan Sát & Rủi Ro (Observations & Risks)
+- Mốc networking quan trọng đã qua: Colab có thể nối tới Mac SuperLink qua Tailscale userspace và proxychains.
+- Đây chưa phải EXP-012 chính thức 3-site vì thiếu Ubuntu RTX3060; nên xem là smoke deployment thành công để giảm rủi ro trước.
+- Metric thấp là bình thường cho smoke 1 round, 2 site, qua deployment thật; mục tiêu chính là xác nhận vận hành cross-machine và aggregation.
+- Upload/download head detection lớn (~55.5 MB) qua Tailscale userspace + SOCKS chạy được nhưng tốn thời gian; 1 round mất khoảng 7.6 phút.
+- Flower deployment app hiện chủ yếu dựa vào logstream; cần cân nhắc bổ sung artifact JSON cho deployment run để journal dễ tổng hợp như `run_detection_sim.py`.
+
+#### 7. Next Steps
+- [x] Run `822420666171934493` đã qua train/evaluate response nhưng fail ở server metric aggregation do `map_per_class` variable-length.
+- [x] Vá deployment ClientApp để không gửi `map_per_class` vào Flower default aggregation.
+- [x] Rerun EXP-012-smoke-colab2 sau fix: run `6660954678908856684` thành công end-to-end.
+- [ ] Nếu upload head qua proxy quá chậm, cân nhắc smoke nhỏ hơn: `pretrained=false`, subset ít ảnh hơn, hoặc giảm số tham số aggregate cho deployment debug.
+- [ ] Khi có máy client có quyền cài Tailscale, quay lại EXP-012 chính thức 3-site: Ubuntu RTX3060 + 2 Colab.

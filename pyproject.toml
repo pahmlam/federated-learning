@@ -57,14 +57,30 @@ pretrained = true
 num-workers = 0
 seed = 2026
 
-[tool.flwr.federations]
-default = "local-sim"
 
-[tool.flwr.federations.local-sim]
-options.num-supernodes = 3
-options.backend.client-resources.num-cpus = 1
-options.backend.client-resources.num-gpus = 0
+#######################################################################
+# CONFIGURATION MIGRATION NOTICE:
+#
+# What was previously called "federation config" for SuperLink
+# connections in pyproject.toml has been renamed and moved.
+#
+# These settings are now **SuperLink connection configuration**
+# and are defined in the Flower configuration file.
+#
+# The entries below are commented out intentionally and are kept
+# only as a migration reference.
+#
+# Docs: https://flower.ai/docs/framework/ref-flower-configuration.html
+#######################################################################
 
-[tool.flwr.federations.deploy]
-address = "127.0.0.1:9093"
-insecure = true
+# [tool.flwr.federations]
+# default = "local-sim"
+
+# [tool.flwr.federations.local-sim]
+# options.num-supernodes = 3
+# options.backend.client-resources.num-cpus = 1
+# options.backend.client-resources.num-gpus = 0
+
+# [tool.flwr.federations.deploy]
+# address = "127.0.0.1:9093"
+# insecure = true
