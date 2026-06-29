@@ -1,0 +1,13 @@
+sample_id,image_path,voc_path,client_id,split
+site-a_train_pexels-photo-4254172,images/pexels-photo-4254172.jpeg,voc_labels/pexels-photo-4254172.xml,site-a,train
+site-a_train_pexels-photo-4254166,images/pexels-photo-4254166.jpeg,voc_labels/pexels-photo-4254166.xml,site-a,train
+site-a_val_pexels-photo-14466335,images/pexels-photo-14466335.jpeg,voc_labels/pexels-photo-14466335.xml,site-a,val
+site-a_val_pexels-photo-15794743,images/pexels-photo-15794743.jpeg,voc_labels/pexels-photo-15794743.xml,site-a,val
+site-b_train_pexels-photo-5726711,images/pexels-photo-5726711.jpeg,voc_labels/pexels-photo-5726711.xml,site-b,train
+site-b_train_pexels-photo-6129644,images/pexels-photo-6129644.jpeg,voc_labels/pexels-photo-6129644.xml,site-b,train
+site-b_val_pexels-photo-4888379,images/pexels-photo-4888379.jpeg,voc_labels/pexels-photo-4888379.xml,site-b,val
+site-b_val_pexels-photo-5726789,images/pexels-photo-5726789.jpeg,voc_labels/pexels-photo-5726789.xml,site-b,val
+site-c_train_pexels-photo-4484074,images/pexels-photo-4484074.jpeg,voc_labels/pexels-photo-4484074.xml,site-c,train
+site-c_train_pexels-photo-1267314,images/pexels-photo-1267314.jpeg,voc_labels/pexels-photo-1267314.xml,site-c,train
+site-c_val_pexels-photo-1928079,images/pexels-photo-1928079.jpeg,voc_labels/pexels-photo-1928079.xml,site-c,val
+site-c_val_pexels-photo-7651928,images/pexels-photo-7651928.jpeg,voc_labels/pexels-photo-7651928.xml,site-c,val

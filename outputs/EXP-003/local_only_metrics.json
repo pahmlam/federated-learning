@@ -1,0 +1,53 @@
+{
+  "artifact_path": "data/processed/ppe_embeddings_oom_safe.npz",
+  "communication_cost_bytes": 0,
+  "data_source": "embedding",
+  "embedding_dim": 16,
+  "global": {
+    "accuracy": 0.0,
+    "loss": 0.7397567927837372
+  },
+  "label_mapping": {
+    "safe": 0,
+    "unsafe": 1
+  },
+  "mode": "local-only",
+  "num_classes": 2,
+  "num_clients": 2,
+  "per_client": [
+    {
+      "accuracy": 0.0,
+      "client_id": 0,
+      "client_label": "site-a",
+      "label_histogram": {
+        "0": 2,
+        "1": 1
+      },
+      "loss": 0.7840343713760376,
+      "num_examples": 1
+    },
+    {
+      "accuracy": 0.0,
+      "client_id": 1,
+      "client_label": "site-b",
+      "label_histogram": {
+        "0": 1,
+        "1": 2
+      },
+      "loss": 0.6954792141914368,
+      "num_examples": 1
+    }
+  ],
+  "profile": "oom-safe",
+  "resource_snapshot": {
+    "available": true,
+    "max_rss_bytes": 362889216,
+    "max_rss_mb": 346.08,
+    "pid": 14930,
+    "platform": "macOS-26.5.1-arm64-arm-64bit",
+    "source": "resource.getrusage(RUSAGE_SELF)",
+    "timestamp_unix": 1781778587.683037
+  },
+  "training_time_sec": 0.0029998329700902104,
+  "update_size_bytes": 136
+}

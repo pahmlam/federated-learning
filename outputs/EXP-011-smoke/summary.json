@@ -1,0 +1,34 @@
+{
+  "config": {
+    "batch_size": 1,
+    "centralized_epochs": 4,
+    "device": "cpu",
+    "image_size": 256,
+    "local_epochs": 1,
+    "lr": 0.005,
+    "num_classes": 9,
+    "num_clients": 3,
+    "num_rounds": 1,
+    "pretrained": false,
+    "seed": 2026
+  },
+  "data_source": "detection",
+  "experiment": "EXP-011-smoke",
+  "manifest_path": "outputs/EXP-011-smoke/manifest.csv",
+  "modes": {
+    "federated": {
+      "map": 0.0,
+      "map_50": 0.0,
+      "map_75": 0.0
+    }
+  },
+  "resource_snapshot": {
+    "available": true,
+    "max_rss_bytes": 1539948544,
+    "max_rss_mb": 1468.61,
+    "pid": 28533,
+    "platform": "macOS-26.5.1-arm64-arm-64bit",
+    "source": "resource.getrusage(RUSAGE_SELF)",
+    "timestamp_unix": 1782392452.237329
+  }
+}

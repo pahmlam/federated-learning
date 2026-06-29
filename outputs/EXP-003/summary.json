@@ -1,0 +1,82 @@
+{
+  "artifact_path": "data/processed/ppe_embeddings_oom_safe.npz",
+  "config": {
+    "batch_size": 4,
+    "centralized_epochs": 1,
+    "client_num_cpus": 1.0,
+    "embedding_dim": 16,
+    "local_epochs": 1,
+    "num_classes": 2,
+    "num_clients": 2,
+    "num_rounds": 1,
+    "num_workers": 0,
+    "ray_num_cpus": 1,
+    "seed": 2026
+  },
+  "data_source": "embedding",
+  "experiment": "EXP-003",
+  "label_mapping": {
+    "safe": 0,
+    "unsafe": 1
+  },
+  "modes": {
+    "centralized": {
+      "accuracy": 0.5,
+      "communication_cost_bytes": 0,
+      "loss": 0.7035589218139648,
+      "resource_snapshot": {
+        "available": true,
+        "max_rss_bytes": 362889216,
+        "max_rss_mb": 346.08,
+        "pid": 14930,
+        "platform": "macOS-26.5.1-arm64-arm-64bit",
+        "source": "resource.getrusage(RUSAGE_SELF)",
+        "timestamp_unix": 1781778587.677037
+      },
+      "training_time_sec": 0.7213002920034342,
+      "update_size_bytes": 136
+    },
+    "federated": {
+      "accuracy": 0.5,
+      "communication_cost_bytes": 544,
+      "loss": 0.7035589218139648,
+      "resource_snapshot": {
+        "available": true,
+        "max_rss_bytes": 385368064,
+        "max_rss_mb": 367.52,
+        "pid": 14930,
+        "platform": "macOS-26.5.1-arm64-arm-64bit",
+        "source": "resource.getrusage(RUSAGE_SELF)",
+        "timestamp_unix": 1781778591.0979462
+      },
+      "training_time_sec": 3.4146260829875246,
+      "update_size_bytes": 136
+    },
+    "local-only": {
+      "accuracy": 0.0,
+      "communication_cost_bytes": 0,
+      "loss": 0.7397567927837372,
+      "resource_snapshot": {
+        "available": true,
+        "max_rss_bytes": 362889216,
+        "max_rss_mb": 346.08,
+        "pid": 14930,
+        "platform": "macOS-26.5.1-arm64-arm-64bit",
+        "source": "resource.getrusage(RUSAGE_SELF)",
+        "timestamp_unix": 1781778587.683037
+      },
+      "training_time_sec": 0.0029998329700902104,
+      "update_size_bytes": 136
+    }
+  },
+  "profile": "oom-safe",
+  "resource_snapshot": {
+    "available": true,
+    "max_rss_bytes": 385368064,
+    "max_rss_mb": 367.52,
+    "pid": 14930,
+    "platform": "macOS-26.5.1-arm64-arm-64bit",
+    "source": "resource.getrusage(RUSAGE_SELF)",
+    "timestamp_unix": 1781778591.099021
+  }
+}

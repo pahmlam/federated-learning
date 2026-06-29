@@ -1,0 +1,164 @@
+{
+  "artifact_path": "data/processed/ppe_real_embeddings_exp006.npz",
+  "communication_cost_bytes": 0,
+  "data_source": "embedding",
+  "embedding_dim": 512,
+  "global": {
+    "accuracy": 0.6916666626930237,
+    "confusion_matrix": [
+      [
+        47,
+        13
+      ],
+      [
+        24,
+        36
+      ]
+    ],
+    "false_negative_rate": 0.5555555555555555,
+    "loss": 0.6103169520696005,
+    "macro_f1": 0.6890538553119967,
+    "per_class": {
+      "0": {
+        "f1": 0.717557251908397,
+        "precision": 0.6619718309859155,
+        "recall": 0.7833333333333333
+      },
+      "1": {
+        "f1": 0.6605504587155964,
+        "precision": 0.7346938775510204,
+        "recall": 0.6
+      }
+    },
+    "unsafe_recall": 0.4444444444444445
+  },
+  "label_mapping": {
+    "safe": 0,
+    "unsafe": 1
+  },
+  "mode": "local-only",
+  "num_classes": 2,
+  "num_clients": 3,
+  "per_client": [
+    {
+      "accuracy": 0.75,
+      "client_id": 0,
+      "client_label": "site-a",
+      "confusion_matrix": [
+        [
+          30,
+          0
+        ],
+        [
+          10,
+          0
+        ]
+      ],
+      "false_negative_rate": 1.0,
+      "label_histogram": {
+        "0": 120,
+        "1": 40
+      },
+      "loss": 0.5204295516014099,
+      "macro_f1": 0.42857142857142855,
+      "num_examples": 40,
+      "per_class": {
+        "0": {
+          "f1": 0.8571428571428571,
+          "precision": 0.75,
+          "recall": 1.0
+        },
+        "1": {
+          "f1": 0.0,
+          "precision": 0.0,
+          "recall": 0.0
+        }
+      },
+      "unsafe_recall": 0.0
+    },
+    {
+      "accuracy": 0.800000011920929,
+      "client_id": 1,
+      "client_label": "site-b",
+      "confusion_matrix": [
+        [
+          4,
+          6
+        ],
+        [
+          2,
+          28
+        ]
+      ],
+      "false_negative_rate": 0.06666666666666665,
+      "label_histogram": {
+        "0": 40,
+        "1": 120
+      },
+      "loss": 0.5660282373428345,
+      "macro_f1": 0.6875,
+      "num_examples": 40,
+      "per_class": {
+        "0": {
+          "f1": 0.5,
+          "precision": 0.6666666666666666,
+          "recall": 0.4
+        },
+        "1": {
+          "f1": 0.8749999999999999,
+          "precision": 0.8235294117647058,
+          "recall": 0.9333333333333333
+        }
+      },
+      "unsafe_recall": 0.9333333333333333
+    },
+    {
+      "accuracy": 0.5249999761581421,
+      "client_id": 2,
+      "client_label": "site-c",
+      "confusion_matrix": [
+        [
+          13,
+          7
+        ],
+        [
+          12,
+          8
+        ]
+      ],
+      "false_negative_rate": 0.6,
+      "label_histogram": {
+        "0": 80,
+        "1": 80
+      },
+      "loss": 0.7444930672645569,
+      "macro_f1": 0.5174603174603175,
+      "num_examples": 40,
+      "per_class": {
+        "0": {
+          "f1": 0.5777777777777778,
+          "precision": 0.52,
+          "recall": 0.65
+        },
+        "1": {
+          "f1": 0.4571428571428572,
+          "precision": 0.5333333333333333,
+          "recall": 0.4
+        }
+      },
+      "unsafe_recall": 0.4
+    }
+  ],
+  "profile": "oom-safe",
+  "resource_snapshot": {
+    "available": true,
+    "max_rss_bytes": 366247936,
+    "max_rss_mb": 349.28,
+    "pid": 5371,
+    "platform": "macOS-26.5.1-arm64-arm-64bit",
+    "source": "resource.getrusage(RUSAGE_SELF)",
+    "timestamp_unix": 1782369914.095715
+  },
+  "training_time_sec": 0.09197395807132125,
+  "update_size_bytes": 263688
+}

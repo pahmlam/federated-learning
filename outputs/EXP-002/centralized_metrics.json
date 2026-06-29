@@ -1,0 +1,57 @@
+{
+  "communication_cost_bytes": 0,
+  "global": {
+    "accuracy": 0.6206896305084229,
+    "loss": 0.8380566835403442
+  },
+  "mode": "centralized",
+  "num_clients": 3,
+  "partition": "non_iid",
+  "per_client": [
+    {
+      "accuracy": 0.25,
+      "client_id": 0,
+      "label_histogram": {
+        "0": 0,
+        "1": 0,
+        "2": 33
+      },
+      "loss": 1.0590025186538696,
+      "num_examples": 8
+    },
+    {
+      "accuracy": 0.5454545617103577,
+      "client_id": 1,
+      "label_histogram": {
+        "0": 0,
+        "1": 39,
+        "2": 6
+      },
+      "loss": 1.0158101320266724,
+      "num_examples": 11
+    },
+    {
+      "accuracy": 1.0,
+      "client_id": 2,
+      "label_histogram": {
+        "0": 40,
+        "1": 1,
+        "2": 1
+      },
+      "loss": 0.46577128767967224,
+      "num_examples": 10
+    }
+  ],
+  "profile": "oom-safe",
+  "resource_snapshot": {
+    "available": true,
+    "max_rss_bytes": 363495424,
+    "max_rss_mb": 346.66,
+    "pid": 55123,
+    "platform": "macOS-26.5.1-arm64-arm-64bit",
+    "source": "resource.getrusage(RUSAGE_SELF)",
+    "timestamp_unix": 1781771618.810883
+  },
+  "training_time_sec": 0.7493407080182806,
+  "update_size_bytes": 108
+}

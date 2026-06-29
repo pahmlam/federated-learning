@@ -1,0 +1,28 @@
+{
+  "experiment": "EXP-001",
+  "modes": {
+    "centralized": {
+      "accuracy": 0.9215686321258545,
+      "communication_cost_bytes": 0,
+      "loss": 0.4948418140411377,
+      "training_time_sec": 0.5042855410010816,
+      "update_size_bytes": 108
+    },
+    "federated": {
+      "accuracy": 0.7058823704719543,
+      "communication_cost_bytes": 2160,
+      "loss": 0.7803864479064941,
+      "training_time_sec": 3.5427373749989783,
+      "update_size_bytes": 108
+    },
+    "local-only": {
+      "accuracy": 0.8039215639525769,
+      "communication_cost_bytes": 0,
+      "loss": 0.7754628868664012,
+      "training_time_sec": 0.00681533300121373,
+      "update_size_bytes": 108
+    }
+  },
+  "partition": "non_iid",
+  "quick": true
+}

@@ -1,0 +1,94 @@
+{
+  "artifact_path": "data/processed/ppe_real_embeddings_exp006.npz",
+  "config": {
+    "batch_size": 4,
+    "centralized_epochs": 15,
+    "client_num_cpus": 1.0,
+    "embedding_dim": 512,
+    "head_hidden_dim": 64,
+    "local_epochs": 5,
+    "normalize_embedding": false,
+    "num_classes": 2,
+    "num_clients": 3,
+    "num_rounds": 10,
+    "num_workers": 0,
+    "ray_num_cpus": 1,
+    "seed": 2026,
+    "weight_decay": 0.0
+  },
+  "data_source": "embedding",
+  "experiment": "EXP-010",
+  "label_mapping": {
+    "safe": 0,
+    "unsafe": 1
+  },
+  "modes": {
+    "centralized": {
+      "accuracy": 0.6333333253860474,
+      "communication_cost_bytes": 0,
+      "false_negative_rate": 0.2833333333333333,
+      "loss": 0.841565728187561,
+      "macro_f1": 0.6307692307692307,
+      "resource_snapshot": {
+        "available": true,
+        "max_rss_bytes": 366575616,
+        "max_rss_mb": 349.59,
+        "pid": 5232,
+        "platform": "macOS-26.5.1-arm64-arm-64bit",
+        "source": "resource.getrusage(RUSAGE_SELF)",
+        "timestamp_unix": 1782369898.525269
+      },
+      "training_time_sec": 0.7509275000775233,
+      "unsafe_recall": 0.7166666666666667,
+      "update_size_bytes": 131848
+    },
+    "federated": {
+      "accuracy": 0.6333333253860474,
+      "communication_cost_bytes": 7910880,
+      "false_negative_rate": 0.4,
+      "loss": 0.9620632529258728,
+      "macro_f1": 0.6329254727474972,
+      "resource_snapshot": {
+        "available": true,
+        "max_rss_bytes": 475889664,
+        "max_rss_mb": 453.84,
+        "pid": 5232,
+        "platform": "macOS-26.5.1-arm64-arm-64bit",
+        "source": "resource.getrusage(RUSAGE_SELF)",
+        "timestamp_unix": 1782369902.06015
+      },
+      "training_time_sec": 3.4505543330451474,
+      "unsafe_recall": 0.6,
+      "update_size_bytes": 131848
+    },
+    "local-only": {
+      "accuracy": 0.6666666666666666,
+      "communication_cost_bytes": 0,
+      "false_negative_rate": 0.5666666666666667,
+      "loss": 0.6005528767903646,
+      "macro_f1": 0.6643356643356644,
+      "resource_snapshot": {
+        "available": true,
+        "max_rss_bytes": 366575616,
+        "max_rss_mb": 349.59,
+        "pid": 5232,
+        "platform": "macOS-26.5.1-arm64-arm-64bit",
+        "source": "resource.getrusage(RUSAGE_SELF)",
+        "timestamp_unix": 1782369898.609045
+      },
+      "training_time_sec": 0.08089654101058841,
+      "unsafe_recall": 0.43333333333333335,
+      "update_size_bytes": 131848
+    }
+  },
+  "profile": "oom-safe",
+  "resource_snapshot": {
+    "available": true,
+    "max_rss_bytes": 475889664,
+    "max_rss_mb": 453.84,
+    "pid": 5232,
+    "platform": "macOS-26.5.1-arm64-arm-64bit",
+    "source": "resource.getrusage(RUSAGE_SELF)",
+    "timestamp_unix": 1782369902.061609
+  }
+}

@@ -1,0 +1,95 @@
+{
+  "communication_cost_bytes": 349227840,
+  "exp_id": "EXP-011-smoke",
+  "global": {
+    "map": 0.0,
+    "map_50": 0.0,
+    "map_75": 0.0
+  },
+  "history": [
+    {
+      "map": 0.0,
+      "map_50": 0.0,
+      "map_75": 0.0,
+      "round": 1
+    }
+  ],
+  "mode": "federated",
+  "num_classes": 9,
+  "num_clients": 3,
+  "per_client": [
+    {
+      "client_id": 0,
+      "client_label": "site-a",
+      "label_histogram": {
+        "ear-mufs": 0,
+        "face-guard": 0,
+        "face-mask-medical": 1,
+        "glasses": 0,
+        "gloves": 3,
+        "helmet": 4,
+        "safety-suit": 0,
+        "safety-vest": 1
+      },
+      "map": 0.0,
+      "map_50": 0.0,
+      "map_75": 0.0,
+      "map_per_class": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "num_examples": 2
+    },
+    {
+      "client_id": 1,
+      "client_label": "site-b",
+      "label_histogram": {
+        "ear-mufs": 0,
+        "face-guard": 0,
+        "face-mask-medical": 4,
+        "glasses": 3,
+        "gloves": 1,
+        "helmet": 0,
+        "safety-suit": 0,
+        "safety-vest": 0
+      },
+      "map": 0.0,
+      "map_50": 0.0,
+      "map_75": 0.0,
+      "map_per_class": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "num_examples": 2
+    },
+    {
+      "client_id": 2,
+      "client_label": "site-c",
+      "label_histogram": {
+        "ear-mufs": 0,
+        "face-guard": 0,
+        "face-mask-medical": 0,
+        "glasses": 1,
+        "gloves": 3,
+        "helmet": 0,
+        "safety-suit": 0,
+        "safety-vest": 0
+      },
+      "map": 0.0,
+      "map_50": 0.0,
+      "map_75": 0.0,
+      "map_per_class": [
+        -1.0,
+        0.0,
+        0.0
+      ],
+      "num_examples": 2
+    }
+  ],
+  "rounds": 1,
+  "training_time_sec": 9.459908624994569,
+  "update_size_bytes": 58204640
+}
