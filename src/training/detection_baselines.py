@@ -31,19 +31,25 @@ def run_detection_centralized(
 ) -> dict[str, Any]:
     device = resolve_device(config.device)
     start = time.perf_counter()
+    print(f"[centralized] start on {device}", flush=True)
     model = _build(config, bundle)
     train_detection_head(
         model,
         bundle.pooled_train,
         epochs=config.centralized_epochs,
         **_train_kwargs(config, device),
+        log_prefix="[centralized]",
     )
-    global_metrics = _evaluate(config, model, bundle.pooled_val, device)
+    global_metrics = _evaluate(config, model, bundle.pooled_val, device, "[centralized/global]")
     per_client = [
-        _client_record(client, _evaluate(config, model, client.val, device))
+        _client_record(
+            client,
+            _evaluate(config, model, client.val, device, f"[centralized/{client.client_id}]"),
+        )
         for client in bundle.clients
     ]
     update_size = parameter_bytes(get_detection_head_parameters(model))
+    print(f"[centralized] done", flush=True)
     return _result("centralized", config, global_metrics, per_client, start, update_size)
 
 
@@ -53,19 +59,28 @@ def run_detection_local_only(
 ) -> dict[str, Any]:
     device = resolve_device(config.device)
     start = time.perf_counter()
+    print(f"[local-only] start on {device}", flush=True)
     per_client: list[dict[str, Any]] = []
     update_size = 0
     for client in bundle.clients:
+        print(f"[local-only/{client.client_id}] start", flush=True)
         model = _build(config, bundle)
         train_detection_head(
             model,
             client.train,
             epochs=config.local_epochs,
             **_train_kwargs(config, device),
+            log_prefix=f"[local-only/{client.client_id}]",
         )
-        per_client.append(_client_record(client, _evaluate(config, model, client.val, device)))
+        per_client.append(
+            _client_record(
+                client,
+                _evaluate(config, model, client.val, device, f"[local-only/{client.client_id}]"),
+            )
+        )
         update_size = parameter_bytes(get_detection_head_parameters(model))
     global_metrics = _weighted_global(per_client)
+    print(f"[local-only] done", flush=True)
     return _result("local-only", config, global_metrics, per_client, start, update_size)
 
 
@@ -89,7 +104,13 @@ def _train_kwargs(config: DetectionConfig, device: str) -> dict[str, Any]:
     }
 
 
-def _evaluate(config: DetectionConfig, model, dataset, device: str) -> dict[str, Any]:
+def _evaluate(
+    config: DetectionConfig,
+    model,
+    dataset,
+    device: str,
+    log_prefix: str | None = None,
+) -> dict[str, Any]:
     return evaluate_detection(
         model,
         dataset,
@@ -97,6 +118,7 @@ def _evaluate(config: DetectionConfig, model, dataset, device: str) -> dict[str,
         device=device,
         num_workers=config.num_workers,
         score_threshold=config.score_threshold,
+        log_prefix=log_prefix,
     )
 
 

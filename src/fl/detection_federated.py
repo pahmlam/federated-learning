@@ -49,15 +49,22 @@ def run_detection_federated(
 ) -> dict[str, Any]:
     device = resolve_device(config.device)
     start = time.perf_counter()
+    print(f"[federated] start on {device}, rounds={config.num_rounds}", flush=True)
 
     global_params = get_detection_head_parameters(_build(config, bundle))
     update_size = parameter_bytes(global_params)
     history: list[dict[str, Any]] = []
 
     for server_round in range(1, config.num_rounds + 1):
+        print(f"[federated] round {server_round}/{config.num_rounds} start", flush=True)
         client_params: list[list[np.ndarray]] = []
         weights: list[float] = []
         for client in bundle.clients:
+            print(
+                f"[federated] round {server_round}/{config.num_rounds} "
+                f"client {client.client_id} train",
+                flush=True,
+            )
             model = _build(config, bundle)
             set_detection_head_parameters(model, global_params)
             train_detection_head(
@@ -65,16 +72,28 @@ def run_detection_federated(
                 client.train,
                 epochs=config.local_epochs,
                 **_train_kwargs(config, device),
+                log_prefix=f"[federated/r{server_round}/{client.client_id}]",
             )
             client_params.append(get_detection_head_parameters(model))
             weights.append(float(len(client.train)))
         global_params = federated_average(client_params, weights)
-        round_records = _distributed_eval(config, bundle, global_params, device)
+        print(f"[federated] round {server_round}/{config.num_rounds} aggregate done", flush=True)
+        round_records = _distributed_eval(
+            config, bundle, global_params, device, f"[federated/r{server_round}/eval]"
+        )
         history.append(
             {"round": server_round, **_weighted_global(round_records)}
         )
+        round_metrics = history[-1]
+        print(
+            f"[federated] round {server_round}/{config.num_rounds} done: "
+            f"map={round_metrics.get('map', -1.0):.4f}, "
+            f"map_50={round_metrics.get('map_50', -1.0):.4f}",
+            flush=True,
+        )
 
-    per_client = _distributed_eval(config, bundle, global_params, device)
+    per_client = _distributed_eval(config, bundle, global_params, device, "[federated/final]")
+    print(f"[federated] done", flush=True)
     return {
         "mode": "federated",
         "exp_id": config.exp_id,
@@ -95,6 +114,7 @@ def _distributed_eval(
     bundle: DetectionDatasetBundle,
     global_params: list[np.ndarray],
     device: str,
+    log_prefix: str | None = None,
 ) -> list[dict[str, Any]]:
     records = []
     for client in bundle.clients:
@@ -107,6 +127,7 @@ def _distributed_eval(
             device=device,
             num_workers=config.num_workers,
             score_threshold=config.score_threshold,
+            log_prefix=f"{log_prefix}/{client.client_id}" if log_prefix else None,
         )
         records.append(_client_record(client, metrics))
     return records

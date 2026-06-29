@@ -34,7 +34,8 @@ Do **not** assume the project is trying to train a full vision model from scratc
 - `docs/md/PLAN.md`: daily checklist from 10/06/2026 to 31/08/2026.
 - `docs/md/REPORT.md`: research report about FL for camera/vision use cases.
 - `docs/Federated Learning.md`: FL background notes.
-- `docs/journal/`: per-experiment journals (EXP-XXX) + registry in `docs/journal/README.md`.
+- `docs/journal/README.md`: single-file experiment journal grouped by date; append all EXP/WIP entries here
+- `docs/engineering`: single-file report all error when run and how to fix, append all here
 
 Search these docs first before answering project-specific research questions.
 

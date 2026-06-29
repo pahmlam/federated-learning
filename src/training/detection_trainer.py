@@ -25,13 +25,17 @@ def train_one_epoch(
     loader: DataLoader,
     optimizer: torch.optim.Optimizer,
     device: str,
+    *,
+    log_prefix: str | None = None,
+    log_every: int = 10,
 ) -> float:
     """Run one training epoch; return the mean summed-loss over batches."""
 
     model.train()
     total_loss = 0.0
     num_batches = 0
-    for images, targets in loader:
+    total_batches = len(loader)
+    for batch_idx, (images, targets) in enumerate(loader, start=1):
         images = [image.to(device) for image in images]
         targets = [_target_to_device(target, device) for target in targets]
         loss_dict = model(images, targets)
@@ -41,6 +45,14 @@ def train_one_epoch(
         optimizer.step()
         total_loss += float(loss.item())
         num_batches += 1
+        if log_prefix and (
+            batch_idx == 1 or batch_idx == total_batches or batch_idx % log_every == 0
+        ):
+            print(
+                f"{log_prefix} batch {batch_idx}/{total_batches} "
+                f"loss={float(loss.item()):.4f}",
+                flush=True,
+            )
     return total_loss / max(1, num_batches)
 
 
@@ -56,6 +68,7 @@ def train_detection_head(
     device: str,
     num_workers: int = 0,
     seed: int = 2026,
+    log_prefix: str | None = None,
 ) -> dict[str, Any]:
     """Train the detector head for ``epochs`` and return the last epoch loss."""
 
@@ -74,8 +87,27 @@ def train_detection_head(
         trainable, lr=lr, momentum=momentum, weight_decay=weight_decay
     )
     last_loss = 0.0
-    for _ in range(epochs):
-        last_loss = train_one_epoch(model, loader, optimizer, device)
+    if log_prefix:
+        print(
+            f"{log_prefix} train start: {len(dataset)} samples, "
+            f"{len(loader)} batches, epochs={epochs}, device={device}",
+            flush=True,
+        )
+    for epoch in range(1, epochs + 1):
+        epoch_prefix = f"{log_prefix} epoch {epoch}/{epochs}" if log_prefix else None
+        last_loss = train_one_epoch(
+            model,
+            loader,
+            optimizer,
+            device,
+            log_prefix=epoch_prefix,
+        )
+        if log_prefix:
+            print(
+                f"{log_prefix} epoch {epoch}/{epochs} done "
+                f"mean_loss={last_loss:.4f}",
+                flush=True,
+            )
     return {"train_loss": last_loss}
 
 
@@ -88,6 +120,7 @@ def evaluate_detection(
     device: str,
     num_workers: int = 0,
     score_threshold: float = 0.0,
+    log_prefix: str | None = None,
 ) -> dict[str, Any]:
     """Evaluate the detector and return JSON-ready mAP metrics."""
 
@@ -100,15 +133,34 @@ def evaluate_detection(
         num_workers=num_workers,
         collate_fn=detection_collate_fn,
     )
+    if log_prefix:
+        print(
+            f"{log_prefix} eval start: {len(dataset)} samples, "
+            f"{len(loader)} batches, device={device}",
+            flush=True,
+        )
     metric = MeanAveragePrecision(box_format="xyxy", class_metrics=True)
-    for images, targets in loader:
+    total_batches = len(loader)
+    for batch_idx, (images, targets) in enumerate(loader, start=1):
         outputs = model([image.to(device) for image in images])
         preds = [_filter_predictions(output, score_threshold) for output in outputs]
         ground_truth = [
             {key: target[key] for key in _TARGET_KEYS} for target in targets
         ]
         metric.update(preds, ground_truth)
-    return _metrics_to_json(metric.compute())
+        if log_prefix and (
+            batch_idx == 1 or batch_idx == total_batches or batch_idx % 10 == 0
+        ):
+            print(f"{log_prefix} eval batch {batch_idx}/{total_batches}", flush=True)
+    metrics = _metrics_to_json(metric.compute())
+    if log_prefix:
+        print(
+            f"{log_prefix} eval done: "
+            f"map={float(metrics.get('map', -1.0)):.4f}, "
+            f"map_50={float(metrics.get('map_50', -1.0)):.4f}",
+            flush=True,
+        )
+    return metrics
 
 
 def _target_to_device(target: dict[str, Any], device: str) -> dict[str, Any]:

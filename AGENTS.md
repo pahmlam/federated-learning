@@ -34,7 +34,8 @@ Do **not** assume the project is trying to train a full vision model from scratc
 - `docs/md/PLAN.md`: daily checklist from 10/06/2026 to 31/08/2026.
 - `docs/md/REPORT.md`: research report about FL for camera/vision use cases.
 - `docs/Federated Learning.md`: FL background notes.
-- `docs/journal/`: per-experiment journals (EXP-XXX) + registry in `docs/journal/README.md`.
+- `docs/journal/README.md`: single-file experiment journal grouped by date; append all EXP/WIP entries here.
+- `docs/engineering`: single-file report all error when run and how to fix, append all here
 
 Search these docs first before answering project-specific research questions.
 
@@ -110,8 +111,8 @@ Key consequences:
 ### Required Baselines And Metrics
 
 Every serious experiment must compare `centralized` (if possible), `local-only`, and `federated` modes.
-You MUST log every experiment to `docs/journal/` using the format in [template.md](file:///Users/phamtunglam/Documents/VNPT/federated-learning/docs/journal/template.md) and register it in [README.md](file:///Users/phamtunglam/Documents/VNPT/federated-learning/docs/journal/README.md).
-Report all metrics specified in the template: global/per-client loss and metrics (Acc/F1/mAP), training time, round count, update size, and communication cost.
+You MUST log every experiment by appending to [docs/journal/README.md](file:///Users/phamtunglam/Documents/VNPT/federated-learning/docs/journal/README.md). Keep this as the single journal file, grouped by date; do not create per-EXP journal files or a separate template.
+Report all metrics specified by the journal rules: global/per-client loss and metrics (Acc/F1/mAP), training time, round count, update size, and communication cost.
 
 For **PPE detection**, the primary metric is **mAP@0.5 and mAP@0.5:0.95 with per-class AP** (via `torchmetrics.detection.MeanAveragePrecision`), reported **per-client** plus a weighted global aggregate. The `centralized` pooled baseline is a reference only (it requires gathering all data on one machine — the Ubuntu GPU — which is outside the FL privacy model).
 

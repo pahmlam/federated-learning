@@ -58,6 +58,11 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=2026)
     args = parser.parse_args()
 
+    print(
+        f"[run] loading manifest={args.manifest} root_dir={args.root_dir} "
+        f"image_size={args.image_size}",
+        flush=True,
+    )
     bundle = load_detection_bundle(args.manifest, args.root_dir, image_size=args.image_size)
     config = DetectionConfig(
         exp_id=args.exp_id,
@@ -75,17 +80,30 @@ def main() -> None:
         seed=args.seed,
     ).normalized()
     output_dir = Path(config.output_dir)
+    print(
+        f"[run] loaded {len(bundle.clients)} clients, "
+        f"train={len(bundle.pooled_train)} val={len(bundle.pooled_val)}, "
+        f"device={config.device}, pretrained={config.pretrained}, "
+        f"batch_size={config.batch_size}",
+        flush=True,
+    )
 
     results: dict[str, Any] = {}
     if args.mode in {"centralized", "all"}:
+        print("[run] mode centralized start", flush=True)
         results["centralized"] = run_detection_centralized(config, bundle)
         write_json(output_dir / "centralized_metrics.json", results["centralized"])
+        print("[run] mode centralized metrics written", flush=True)
     if args.mode in {"local-only", "all"}:
+        print("[run] mode local-only start", flush=True)
         results["local-only"] = run_detection_local_only(config, bundle)
         write_json(output_dir / "local_only_metrics.json", results["local-only"])
+        print("[run] mode local-only metrics written", flush=True)
     if args.mode in {"federated", "all"}:
+        print("[run] mode federated start", flush=True)
         results["federated"] = run_detection_federated(config, bundle)
         write_json(output_dir / "federated_metrics.json", results["federated"])
+        print("[run] mode federated metrics written", flush=True)
 
     summary = {
         "experiment": config.exp_id,
