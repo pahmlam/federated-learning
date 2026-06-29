@@ -31,7 +31,7 @@ venv/bin/python scripts/precompute_embeddings.py \
   --output data/processed/ppe_real_embeddings_oom_safe.npz \
   --batch-size 4 \
   --num-workers 0 \
-  --device cpu
+  --device mps
 ```
 
 PPE embedding baseline dry run:

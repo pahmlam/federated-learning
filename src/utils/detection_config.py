@@ -19,6 +19,8 @@ NUM_DETECTION_CLASSES: int = len(PPE_CORE_CLASSES) + 1  # + background
 
 DEFAULT_DET_EXP_ID = "EXP-011"
 DEFAULT_DET_OUTPUT_DIR = "outputs/EXP-011"
+DEFAULT_DET_MANIFEST_PATH = "configs/datasets/ppe_detection_exp011_manifest.csv"
+DEFAULT_DET_ROOT_DIR = "data/ppe"
 VALID_DEVICES = {"auto", "cpu", "cuda"}
 
 
@@ -32,6 +34,8 @@ def ppe_label_to_index() -> dict[str, int]:
 class DetectionConfig:
     exp_id: str = DEFAULT_DET_EXP_ID
     output_dir: str = DEFAULT_DET_OUTPUT_DIR
+    manifest_path: str = DEFAULT_DET_MANIFEST_PATH
+    root_dir: str = DEFAULT_DET_ROOT_DIR
     num_clients: int = 3
     num_classes: int = NUM_DETECTION_CLASSES
     image_size: int = 512
@@ -45,6 +49,7 @@ class DetectionConfig:
     num_workers: int = 0
     score_threshold: float = 0.05
     device: str = "auto"
+    pretrained: bool = True
     seed: int = 2026
 
     def normalized(self) -> "DetectionConfig":
