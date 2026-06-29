@@ -1,0 +1,23 @@
+{
+  "sites": {
+    "site-a": {
+      "total": 300,
+      "train": 240,
+      "val": 60,
+      "zip_path": "outputs/EXP-012/shards/site-a.zip"
+    },
+    "site-b": {
+      "total": 300,
+      "train": 240,
+      "val": 60,
+      "zip_path": "outputs/EXP-012/shards/site-b.zip"
+    },
+    "site-c": {
+      "total": 300,
+      "train": 240,
+      "val": 60,
+      "zip_path": "outputs/EXP-012/shards/site-c.zip"
+    }
+  },
+  "total": 900
+}
