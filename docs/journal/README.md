@@ -32,7 +32,7 @@ Thư mục này dùng **một file duy nhất** (`docs/journal/README.md`) để
 | **EXP-009** | 2026-06-25 | PPE embedding L2-normalize (cosine-style, 480/3) | Thành công | 0.6250/0.6229 | 0.6750/0.6740 | 0.6000/0.5945 | [Chi tiết](#exp-009) |
 | **EXP-010** | 2026-06-25 | PPE embedding MLP head capacity sweep (480/3, H=64 headline) | Thành công | 0.6333/0.6312 | 0.6667/0.6643 | 0.6333/0.6329 | [Chi tiết](#exp-010) |
 | **EXP-011** | 2026-06-29 | PPE detection GPU simulation baseline (Faster R-CNN head-only) | Thành công | mAP 0.1179 / mAP50 0.2755 | mAP 0.0657 / mAP50 0.1601 | mAP 0.0951 / mAP50 0.2351 | [Chi tiết](#exp-011) |
-| **EXP-012-smoke** | 2026-06-29/30 | PPE detection real deployment smoke: Mac SuperLink + 2 Colab SuperNodes | Thành công + artifact verified | N/A | N/A | mAP 0.0170 / mAP50 0.0498 | [Chi tiết](#exp-012-smoke-colab2) |
+| **EXP-012-smoke** | 2026-06-29/30 | PPE detection real deployment smoke: Mac SuperLink + 2 Colab SuperNodes | Thành công + artifacts/post-FL eval verified | N/A | N/A | mAP 0.0170 / mAP50 0.0498 | [Chi tiết](#exp-012-smoke-colab2) |
 | **WIP** | 2026-06-25 | PPE detection pivot + federated deployment + DVC sync | Đang làm | N/A | N/A | N/A | [Chi tiết](#wip-detection-pivot) |
 
 ## 2026-06-12
@@ -1242,6 +1242,24 @@ Per-class AP của mode `federated` sau 5 round:
   - `final_head.npz` written (~56 MB) with 14 named detection-head arrays matching `detection_trainable_parameter_names(model)`.
 - **Scope note:** this is still a 2-Colab smoke run, not the full 3-site target with Ubuntu RTX3060.
 
+#### 3.2. Post-FL final-head site evaluation verified
+- **Inputs:** `outputs/EXP-012-rerun/final_head.npz` copied to each Colab site and evaluated with `scripts/evaluate_final_detection_head.py`.
+- **Output files:**
+  - `outputs/EXP-012-rerun/final_head_site_b_metrics.json`
+  - `outputs/EXP-012-rerun/final_head_site_c_metrics.json`
+
+| Site | Examples | mAP@0.5:0.95 | mAP@0.5 | mAP@0.75 |
+| :--- | :---: | :---: | :---: | :---: |
+| `site-b` | 60 | 0.0205 | 0.0587 | 0.0090 |
+| `site-c` | 60 | 0.0134 | 0.0409 | 0.0040 |
+| Weighted aggregate | 120 | 0.0170 | 0.0498 | 0.0065 |
+
+- The weighted aggregate from the two site-side JSON reports matches `deployment_summary.json` exactly:
+  - `map`: `0.01695339474827051`
+  - `map_50`: `0.04982292465865612`
+  - `map_75`: `0.006521794246509671`
+- This verifies the post-FL handoff path for validation metrics: server saves final head, site loads final head, site evaluates on local validation data, and the per-site reports can reproduce the server aggregate.
+
 #### 4. Incident: Metric Aggregation Bug
 - Run đầu `822420666171934493` đã train/evaluate xong local nhưng fail sau evaluate aggregation với lỗi `ValueError: zip() argument 2 is longer than argument 1`.
 - Root cause: `map_per_class` trong `MetricRecord` là list có độ dài khác nhau giữa client do mỗi validation shard có class hiện diện khác nhau. Flower FedAvg default metric aggregator zip list theo vị trí, nên list không cùng độ dài làm server crash dù train/evaluate local đã xong.
@@ -1302,5 +1320,6 @@ flwr log 6660954678908856684 deploy --show
 - [x] Vá deployment ClientApp để không gửi `map_per_class` vào Flower default aggregation.
 - [x] Rerun EXP-012-smoke-colab2 sau fix: run `6660954678908856684` thành công end-to-end.
 - [x] Rerun `outputs/EXP-012-rerun` với `device="cuda"` và xác nhận deployment artifacts thật: `deployment_summary.json` + `final_head.npz`.
+- [x] Chạy post-FL final-head eval trên `site-b` và `site-c`; per-site JSON metrics reproduce đúng weighted aggregate của server.
 - [ ] Nếu upload head qua proxy quá chậm, cân nhắc smoke nhỏ hơn: `pretrained=false`, subset ít ảnh hơn, hoặc giảm số tham số aggregate cho deployment debug.
 - [ ] Khi có máy client có quyền cài Tailscale, quay lại EXP-012 chính thức 3-site: Ubuntu RTX3060 + 2 Colab.

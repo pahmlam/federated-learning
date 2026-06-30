@@ -1,0 +1,51 @@
+{
+  "classes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8
+  ],
+  "client_id": 0,
+  "client_label": "site-c",
+  "config": {
+    "batch_size": 2,
+    "device": "cuda",
+    "image_size": 512,
+    "num_workers": 0,
+    "pretrained": true,
+    "score_threshold": 0.05,
+    "seed": 2026
+  },
+  "head_path": "outputs/EXP-012-rerun/final_head.npz",
+  "manifest": "data/ppe_site_c/manifest.csv",
+  "map": 0.013404026627540588,
+  "map_50": 0.040913622826337814,
+  "map_75": 0.004040517378598452,
+  "map_per_class": [
+    -1.0,
+    -1.0,
+    0.0,
+    -1.0,
+    0.042971421033144,
+    0.024048710241913795,
+    0.0,
+    0.0
+  ],
+  "mar_100_per_class": [
+    -1.0,
+    -1.0,
+    0.0,
+    -1.0,
+    0.17450980842113495,
+    0.15111111104488373,
+    0.0,
+    0.0
+  ],
+  "mode": "post-fl-final-head-eval",
+  "num_examples": 60,
+  "root_dir": "data/ppe_site_c"
+}

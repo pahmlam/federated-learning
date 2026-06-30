@@ -36,8 +36,8 @@ The system now has a site-side command for the first post-FL handoff step:
 - evaluating the final global head on one site's local validation shard,
 - writing a site-local JSON metrics report.
 
-This command is implemented and unit-tested, but has not yet been run on a real
-site against `outputs/EXP-012-rerun/final_head.npz`.
+This command is implemented, unit-tested, and verified on the two Colab sites
+against `outputs/EXP-012-rerun/final_head.npz`.
 
 The system does not yet implement the final production inference handoff:
 
@@ -475,8 +475,9 @@ Partially implemented:
   topology with Ubuntu RTX3060 is not complete.
 - Deployment robustness: Colab straggler behavior is observed, but dropout,
   checkpoint, and resume behavior are not fully tested.
-- Post-FL handoff: site-side final-head evaluation is implemented and unit-tested,
-  but not yet run on a real site against `outputs/EXP-012-rerun/final_head.npz`.
+- Post-FL handoff: site-side final-head evaluation is verified for validation
+  metrics on the two Colab sites; operational image/video inference is still
+  missing.
 
 Missing:
 
@@ -500,7 +501,8 @@ Flower deployment run completes
   -> each site can load final head                     [done, unit-tested]
   -> each site can run local eval command              [done, unit-tested]
   -> verify server artifact writing in real deploy      [done: EXP-012-rerun]
-  -> run site eval against real final_head.npz          [next]
+  -> run site eval against real final_head.npz          [done: site-b/site-c]
+  -> run operational image/video inference             [next]
 ```
 
 Remaining artifact/handoff work, in suggested order:
@@ -509,9 +511,9 @@ Remaining artifact/handoff work, in suggested order:
 outputs/<EXP-ID>/
   deployment_summary.json   # done
   final_head.npz            # done (when Flower exposes final arrays)
-  final_head_site_a_metrics.json  # code exists via site-side command
-  final_head_site_b_metrics.json
-  final_head_site_c_metrics.json
+  final_head_site_b_metrics.json  # done for EXP-012-rerun
+  final_head_site_c_metrics.json  # done for EXP-012-rerun
+  final_head_site_a_metrics.json  # pending until site-a joins
   server_log.txt            # next
   client_site_a_metrics.json  # next: per-client deployment metric files
   client_site_b_metrics.json
@@ -530,5 +532,6 @@ venv/bin/python scripts/evaluate_final_detection_head.py \
   --device auto
 ```
 
-Next: run the site-side final-head evaluation command on each real site against
-`outputs/EXP-012-rerun/final_head.npz`, then capture per-site metric JSON files.
+Next: add an operational image/video inference command that loads
+`final_head.npz` at a site and writes detections for local media. For the full
+3-site run, repeat the final-head eval on `site-a` after Ubuntu RTX3060 joins.
