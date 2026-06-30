@@ -29,7 +29,7 @@ pythonpath = ["."]
 testpaths = ["tests"]
 
 [tool.flwr.app]
-publisher = "vnpt-ai"
+publisher = "vnpt-technology"
 fab-format-version = 1
 flwr-version-target = "1.30.0"
 
