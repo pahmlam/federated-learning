@@ -27,8 +27,8 @@ A deployment run now writes its own server-side artifacts:
 - `final_head.npz` (the final aggregated detection head, written only when
   Flower exposes final aggregated arrays).
 
-This code path is implemented and unit-tested, but has not yet been verified
-end-to-end against a real deployment; that check is the next deployment smoke.
+This code path is implemented, unit-tested, and verified end-to-end by the
+`outputs/EXP-012-rerun/` deployment smoke.
 
 The system now has a site-side command for the first post-FL handoff step:
 
@@ -36,8 +36,8 @@ The system now has a site-side command for the first post-FL handoff step:
 - evaluating the final global head on one site's local validation shard,
 - writing a site-local JSON metrics report.
 
-This command is implemented and unit-tested, but has not yet been verified with a
-real `final_head.npz` from the next deployment smoke.
+This command is implemented and unit-tested, but has not yet been run on a real
+site against `outputs/EXP-012-rerun/final_head.npz`.
 
 The system does not yet implement the final production inference handoff:
 
@@ -285,6 +285,7 @@ Current deployment smoke that has passed:
 - Tailscale userspace networking + proxychains
 - 1 FL round
 - train and evaluate completed
+- deployment artifacts verified in `outputs/EXP-012-rerun/`
 
 Full 3-site deployment is still pending because Ubuntu RTX3060 was not included
 in the successful deployment smoke.
@@ -444,8 +445,8 @@ but no `.npz`.
 Still incomplete:
 
 - Per-client deployment metric files and a server log artifact.
-- EXP-012-smoke was summarized manually from logstream (pre-dates this artifact
-  path); future EXP-012 runs can journal from `deployment_summary.json`.
+- Future deployment runs should continue journaling from `deployment_summary.json`
+  instead of only from logstream.
 
 ## 10. What Exists Today
 
@@ -475,7 +476,7 @@ Partially implemented:
 - Deployment robustness: Colab straggler behavior is observed, but dropout,
   checkpoint, and resume behavior are not fully tested.
 - Post-FL handoff: site-side final-head evaluation is implemented and unit-tested,
-  but not yet verified against a real deployment artifact.
+  but not yet run on a real site against `outputs/EXP-012-rerun/final_head.npz`.
 
 Missing:
 
@@ -498,7 +499,8 @@ Flower deployment run completes
   -> save final global detection head (final_head.npz) [done, when arrays exposed]
   -> each site can load final head                     [done, unit-tested]
   -> each site can run local eval command              [done, unit-tested]
-  -> verify on a real deployment artifact              [next]
+  -> verify server artifact writing in real deploy      [done: EXP-012-rerun]
+  -> run site eval against real final_head.npz          [next]
 ```
 
 Remaining artifact/handoff work, in suggested order:
@@ -528,5 +530,5 @@ venv/bin/python scripts/evaluate_final_detection_head.py \
   --device auto
 ```
 
-Next: rerun EXP-012 smoke to verify the deployment artifacts are produced for
-real, then run this command on a site against that real `final_head.npz`.
+Next: run the site-side final-head evaluation command on each real site against
+`outputs/EXP-012-rerun/final_head.npz`, then capture per-site metric JSON files.

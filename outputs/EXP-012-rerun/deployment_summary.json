@@ -1,0 +1,41 @@
+{
+  "config": {
+    "batch_size": 2,
+    "device": "cuda",
+    "image_size": 512,
+    "local_epochs": 1,
+    "lr": 0.005,
+    "num_clients": 2,
+    "num_rounds": 1,
+    "pretrained": true,
+    "seed": 2026
+  },
+  "estimated_completed_communication_cost_bytes": 232818560,
+  "exp_id": "EXP-012-rerun",
+  "final_metrics": {
+    "map": 0.01695339474827051,
+    "map_50": 0.04982292465865612,
+    "map_75": 0.006521794246509671,
+    "train_loss": 0.5491957521686952
+  },
+  "mode": "federated-deployment",
+  "note": "Server holds no raw data; metrics are weighted distributed-evaluation aggregates returned by clients.",
+  "output_paths": {
+    "deployment_summary": "outputs/EXP-012-rerun/deployment_summary.json",
+    "final_head": "outputs/EXP-012-rerun/final_head.npz"
+  },
+  "planned_communication_cost_bytes": 232818560,
+  "rounds_completed": 1,
+  "server": {
+    "aggregation_strategy": "FedAvg",
+    "evaluation": "distributed",
+    "weighted_by_key": "num-examples"
+  },
+  "status": "completed",
+  "timing": {
+    "ended_at": "2026-06-30T08:18:55.825030+00:00",
+    "runtime_seconds": 417.719,
+    "started_at": "2026-06-30T08:11:58.106530+00:00"
+  },
+  "update_size_bytes": 58204640
+}

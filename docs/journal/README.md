@@ -32,7 +32,7 @@ Thư mục này dùng **một file duy nhất** (`docs/journal/README.md`) để
 | **EXP-009** | 2026-06-25 | PPE embedding L2-normalize (cosine-style, 480/3) | Thành công | 0.6250/0.6229 | 0.6750/0.6740 | 0.6000/0.5945 | [Chi tiết](#exp-009) |
 | **EXP-010** | 2026-06-25 | PPE embedding MLP head capacity sweep (480/3, H=64 headline) | Thành công | 0.6333/0.6312 | 0.6667/0.6643 | 0.6333/0.6329 | [Chi tiết](#exp-010) |
 | **EXP-011** | 2026-06-29 | PPE detection GPU simulation baseline (Faster R-CNN head-only) | Thành công | mAP 0.1179 / mAP50 0.2755 | mAP 0.0657 / mAP50 0.1601 | mAP 0.0951 / mAP50 0.2351 | [Chi tiết](#exp-011) |
-| **EXP-012-smoke** | 2026-06-29 | PPE detection real deployment smoke: Mac SuperLink + 2 Colab SuperNodes | Thành công | N/A | N/A | mAP 0.0169 / mAP50 0.0498 | [Chi tiết](#exp-012-smoke-colab2) |
+| **EXP-012-smoke** | 2026-06-29/30 | PPE detection real deployment smoke: Mac SuperLink + 2 Colab SuperNodes | Thành công + artifact verified | N/A | N/A | mAP 0.0170 / mAP50 0.0498 | [Chi tiết](#exp-012-smoke-colab2) |
 | **WIP** | 2026-06-25 | PPE detection pivot + federated deployment + DVC sync | Đang làm | N/A | N/A | N/A | [Chi tiết](#wip-detection-pivot) |
 
 ## 2026-06-12
@@ -1213,6 +1213,35 @@ Per-class AP của mode `federated` sau 5 round:
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
 | Federated deployment smoke (2 Colab) | 1 | 0.5492 | 0.0169 | 0.0498 | 0.0065 | 453.51s |
 
+#### 3.1. Rerun 2026-06-30: CUDA config + deployment artifacts verified
+- **Output path:** `outputs/EXP-012-rerun/`
+- **Run config from `deployment_summary.json`:**
+  - `exp-id="EXP-012-rerun"`
+  - `output-dir="outputs/EXP-012-rerun"`
+  - `num-clients=2`
+  - `num-rounds=1`
+  - `local-epochs=1`
+  - `batch-size=2`
+  - `image-size=512`
+  - `lr=0.005`
+  - `device="cuda"`
+  - `num-workers=0`
+- **Status:** `completed`
+- **Rounds completed:** `1`
+- **Runtime:** `417.719s`
+- **Update size:** `58,204,640 bytes` (~55.5 MiB)
+- **Planned communication cost:** `232,818,560 bytes`
+- **Estimated completed communication cost:** `232,818,560 bytes`
+- **Final weighted distributed metrics:**
+  - `train_loss`: `0.5491957521686952`
+  - `map`: `0.01695339474827051`
+  - `map_50`: `0.04982292465865612`
+  - `map_75`: `0.006521794246509671`
+- **Artifacts verified on disk:**
+  - `deployment_summary.json` written with status/config/metrics/communication cost.
+  - `final_head.npz` written (~56 MB) with 14 named detection-head arrays matching `detection_trainable_parameter_names(model)`.
+- **Scope note:** this is still a 2-Colab smoke run, not the full 3-site target with Ubuntu RTX3060.
+
 #### 4. Incident: Metric Aggregation Bug
 - Run đầu `822420666171934493` đã train/evaluate xong local nhưng fail sau evaluate aggregation với lỗi `ValueError: zip() argument 2 is longer than argument 1`.
 - Root cause: `map_per_class` trong `MetricRecord` là list có độ dài khác nhau giữa client do mỗi validation shard có class hiện diện khác nhau. Flower FedAvg default metric aggregator zip list theo vị trí, nên list không cùng độ dài làm server crash dù train/evaluate local đã xong.
@@ -1272,5 +1301,6 @@ flwr log 6660954678908856684 deploy --show
 - [x] Run `822420666171934493` đã qua train/evaluate response nhưng fail ở server metric aggregation do `map_per_class` variable-length.
 - [x] Vá deployment ClientApp để không gửi `map_per_class` vào Flower default aggregation.
 - [x] Rerun EXP-012-smoke-colab2 sau fix: run `6660954678908856684` thành công end-to-end.
+- [x] Rerun `outputs/EXP-012-rerun` với `device="cuda"` và xác nhận deployment artifacts thật: `deployment_summary.json` + `final_head.npz`.
 - [ ] Nếu upload head qua proxy quá chậm, cân nhắc smoke nhỏ hơn: `pretrained=false`, subset ít ảnh hơn, hoặc giảm số tham số aggregate cho deployment debug.
 - [ ] Khi có máy client có quyền cài Tailscale, quay lại EXP-012 chính thức 3-site: Ubuntu RTX3060 + 2 Colab.
