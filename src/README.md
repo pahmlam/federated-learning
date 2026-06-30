@@ -52,6 +52,9 @@ to EXP-010 should be treated as historical baseline work.
 - `src/data/detection_manifest.py`: seeded client split and non-IID manifest
   generation.
 - `src/data/detection_data.py`: per-client dataset bundle loading.
+- `src/evaluation/final_head_eval.py` and
+  `scripts/evaluate_final_detection_head.py`: site-side loading and evaluation of
+  a deployment `final_head.npz`.
 
 Expected flow:
 
@@ -59,4 +62,5 @@ Expected flow:
 manifest -> dataset bundle -> model/head params -> train/evaluate
          -> centralized/local-only/manual FedAvg or Flower deployment
          -> per-client metrics + weighted global metrics + artifacts
+         -> site-side final_head.npz evaluation
 ```

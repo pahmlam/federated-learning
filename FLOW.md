@@ -30,10 +30,18 @@ A deployment run now writes its own server-side artifacts:
 This code path is implemented and unit-tested, but has not yet been verified
 end-to-end against a real deployment; that check is the next deployment smoke.
 
-The system does not yet implement the final post-FL inference handoff:
+The system now has a site-side command for the first post-FL handoff step:
+
+- loading `final_head.npz` into a fresh detector,
+- evaluating the final global head on one site's local validation shard,
+- writing a site-local JSON metrics report.
+
+This command is implemented and unit-tested, but has not yet been verified with a
+real `final_head.npz` from the next deployment smoke.
+
+The system does not yet implement the final production inference handoff:
 
 - distributing/exporting that final model back to sites for inference,
-- running a site-side inference command on local images/video,
 - per-client deployment metric files and a server log artifact.
 
 ## 2. Main Data Flow
@@ -456,6 +464,9 @@ Implemented:
 - Two-Colab real deployment smoke.
 - Deployment artifacts: server writes `deployment_summary.json` and saves the
   final global head as `final_head.npz`.
+- Site-side final-head evaluation: `scripts/evaluate_final_detection_head.py`
+  loads `final_head.npz`, evaluates on a local site validation shard, and writes a
+  JSON metrics report.
 
 Partially implemented:
 
@@ -463,29 +474,31 @@ Partially implemented:
   topology with Ubuntu RTX3060 is not complete.
 - Deployment robustness: Colab straggler behavior is observed, but dropout,
   checkpoint, and resume behavior are not fully tested.
+- Post-FL handoff: site-side final-head evaluation is implemented and unit-tested,
+  but not yet verified against a real deployment artifact.
 
 Missing:
 
 - Per-client deployment metric files and a server log artifact.
-- Site-side post-FL inference command.
 - Export/push final model to clients for inference.
+- Site-side image/video inference command for operational use.
 - Task abstraction layer for plugging in a new workload without touching the
   detection-specific core.
 - Additional aggregation strategies beyond FedAvg.
 
 ## 11. Recommended Next Flow To Add
 
-Done in this step (first practical target): the ServerApp now writes
-`deployment_summary.json` and saves the final global detection head as
-`final_head.npz`, so future EXP-012 runs are reproducible and journalable from
-disk instead of only from logstream.
+Done so far: the ServerApp writes `deployment_summary.json`, saves the final
+global detection head as `final_head.npz`, and a site can run a local final-head
+evaluation command.
 
 ```text
 Flower deployment run completes
   -> write outputs/<EXP-ID>/deployment_summary.json   [done]
   -> save final global detection head (final_head.npz) [done, when arrays exposed]
-  -> each site can load final head                     [next]
-  -> each site can run local eval or inference command [next]
+  -> each site can load final head                     [done, unit-tested]
+  -> each site can run local eval command              [done, unit-tested]
+  -> verify on a real deployment artifact              [next]
 ```
 
 Remaining artifact/handoff work, in suggested order:
@@ -494,11 +507,26 @@ Remaining artifact/handoff work, in suggested order:
 outputs/<EXP-ID>/
   deployment_summary.json   # done
   final_head.npz            # done (when Flower exposes final arrays)
+  final_head_site_a_metrics.json  # code exists via site-side command
+  final_head_site_b_metrics.json
+  final_head_site_c_metrics.json
   server_log.txt            # next
   client_site_a_metrics.json  # next: per-client deployment metric files
   client_site_b_metrics.json
   client_site_c_metrics.json
 ```
 
-After artifacts: a site-side command to load `final_head.npz` into the model and
-run local evaluation/inference, then export/push of the final head to clients.
+Site-side final-head evaluation command:
+
+```bash
+venv/bin/python scripts/evaluate_final_detection_head.py \
+  --head-path outputs/<EXP-ID>/final_head.npz \
+  --manifest <site-manifest.csv> \
+  --root-dir <site-data-root> \
+  --client-id <site-id> \
+  --output outputs/<EXP-ID>/final_head_<site-id>_metrics.json \
+  --device auto
+```
+
+Next: rerun EXP-012 smoke to verify the deployment artifacts are produced for
+real, then run this command on a site against that real `final_head.npz`.
