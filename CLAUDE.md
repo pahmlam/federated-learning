@@ -1,5 +1,22 @@
 This file provides guidance to Claude sessions when working with this repository.
 
+## Collaboration Role
+
+Claude Code is the implementation worker for this repository.
+
+- Own code and test changes requested by the user or by a Codex handoff prompt.
+- Keep implementation changes scoped to the requested feature/fix.
+- Run relevant tests and report exactly what passed or failed.
+- Do **not** modify Markdown/documentation files by default.
+- If behavior changes require docs updates, mention the required updates in the final summary instead of editing docs.
+- Only edit docs (`*.md`, journal, planning files, README files) when the user explicitly asks Claude Code to do documentation work.
+
+Codex is the reviewer/planner/documentation partner:
+
+- Codex reviews Claude Code's implementation work.
+- Codex owns `PLAN.md`, `FLOW.md`, README/doc updates, journal entries, and experiment interpretation.
+- Codex will update documentation after code behavior is reviewed.
+
 ## Repository Overview
 
 This is a Federated Learning research/prototype repository for camera/vision tasks on edge deployments. The target use cases are:
@@ -38,21 +55,6 @@ Do **not** assume the project is trying to train a full vision model from scratc
 - `docs/engineering`: single-file report all error when run and how to fix, append all here
 
 Search these docs first before answering project-specific research questions.
-
-### Repo Skeleton
-
-- `README.md`: root overview and current assumptions.
-- `configs/`: future dataset, experiment, and Flower configs.
-- `data/`: local data staging. Do not commit large/private data.
-- `experiments/`: centralized, local-only, federated, and ablation experiment organization.
-- `src/`: future implementation package.
-- `outputs/`: local logs, metrics, checkpoints, and reports. Avoid committing large artifacts.
-- `tests/`: future smoke/unit tests.
-
-### Flower Quickstart Reference
-
-- `demo/quickstart_numpy/`: existing Flower NumPy quickstart.
-- `demo/README.md`: how to run the quickstart.
 
 Keep `demo/` as a learning/reference app unless the user explicitly asks to modify it.
 
@@ -111,8 +113,8 @@ Key consequences:
 ### Required Baselines And Metrics
 
 Every serious experiment must compare `centralized` (if possible), `local-only`, and `federated` modes.
-You MUST log every experiment to `docs/journal/` using the format in [template.md](file:///Users/phamtunglam/Documents/VNPT/federated-learning/docs/journal/template.md) and register it in [README.md](file:///Users/phamtunglam/Documents/VNPT/federated-learning/docs/journal/README.md).
-Report all metrics specified in the template: global/per-client loss and metrics (Acc/F1/mAP), training time, round count, update size, and communication cost.
+Experiment journal updates are documentation work and are Codex-owned by default. Claude Code should not edit the journal unless explicitly asked. When Claude Code runs an experiment, report the metrics/artifact paths in the final summary so Codex can append `docs/journal/README.md`.
+Required metrics: global/per-client loss and metrics (Acc/F1/mAP), training time, round count, update size, and communication cost.
 
 For **PPE detection**, the primary metric is **mAP@0.5 and mAP@0.5:0.95 with per-class AP** (via `torchmetrics.detection.MeanAveragePrecision`), reported **per-client** plus a weighted global aggregate. The `centralized` pooled baseline is a reference only (it requires gathering all data on one machine — the Ubuntu GPU — which is outside the FL privacy model).
 
@@ -151,6 +153,7 @@ For research/documentation tasks:
 - Preserve neutral research tone.
 - Avoid claiming a method/framework is new before baselines and bottlenecks are demonstrated.
 - Distinguish clearly between FL framework, experiment repo, and research method.
+- Do not perform documentation edits unless explicitly requested. Report documentation changes needed in your final summary.
 
 For implementation tasks:
 
@@ -158,7 +161,7 @@ For implementation tasks:
 - Implement baselines before method improvements.
 - Add smoke tests early.
 - Verify at least one quick run for the mode being changed.
-- Do not modify unrelated docs or `demo/` unless asked.
+- Do not modify docs, unrelated files, or `demo/` unless asked.
 - Use `rg` for search and `apply_patch` for edits.
 
 For planning tasks:
@@ -175,13 +178,6 @@ Run the test suite:
 venv/bin/python -m pytest
 ```
 
-Classification track (archived stage-1 baseline, reuses precomputed embeddings):
-
-```bash
-venv/bin/python scripts/run_embedding_demo.py --mode all \
-  --artifact data/processed/ppe_real_embeddings_exp006.npz --profile oom-safe ...
-```
-
 Detection track (current) — once built, runs via the modern Flower API:
 
 ```bash
@@ -190,10 +186,3 @@ flwr run . deploy       # real 3-node deployment (SuperLink on Mac, SuperNodes o
 ```
 
 Flower quickstart reference (do not modify unless asked): `cd demo && flwr run .`
-
-## Documentation Standards
-
-- Keep docs focused and concise.
-- Prefer relative links between local docs.
-- Use tables for structured comparisons.
-- Keep heading levels hierarchical.

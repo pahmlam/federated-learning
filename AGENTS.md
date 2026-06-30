@@ -1,4 +1,20 @@
-This file provides guidance to Claude sessions when working with this repository.
+This file provides guidance to Codex sessions when working with this repository.
+
+## Collaboration Role
+
+Codex is the reviewer/planner/documentation partner for this repository.
+
+- Owns project direction, code review, experiment interpretation, and documentation updates.
+- Writes/updates docs such as `PLAN.md`, `FLOW.md`, `README.md`, and `docs/journal/README.md`.
+- Reviews Claude Code's implementation work before it is accepted.
+- Gives Claude Code implementation prompts that are scoped to coding and tests.
+- When handing work to Claude Code, explicitly say: **do not modify Markdown/docs files** unless the user asks for that specific exception.
+
+Claude Code is treated as the implementation worker:
+
+- Claude Code should make code/test changes.
+- Claude Code should report needed doc updates instead of editing docs.
+- Codex will apply doc updates after reviewing code behavior.
 
 ## Repository Overview
 
@@ -38,21 +54,6 @@ Do **not** assume the project is trying to train a full vision model from scratc
 - `docs/engineering`: single-file report all error when run and how to fix, append all here
 
 Search these docs first before answering project-specific research questions.
-
-### Repo Skeleton
-
-- `README.md`: root overview and current assumptions.
-- `configs/`: future dataset, experiment, and Flower configs.
-- `data/`: local data staging. Do not commit large/private data.
-- `experiments/`: centralized, local-only, federated, and ablation experiment organization.
-- `src/`: future implementation package.
-- `outputs/`: local logs, metrics, checkpoints, and reports. Avoid committing large artifacts.
-- `tests/`: future smoke/unit tests.
-
-### Flower Quickstart Reference
-
-- `demo/quickstart_numpy/`: existing Flower NumPy quickstart.
-- `demo/README.md`: how to run the quickstart.
 
 Keep `demo/` as a learning/reference app unless the user explicitly asks to modify it.
 
@@ -151,6 +152,7 @@ For research/documentation tasks:
 - Preserve neutral research tone.
 - Avoid claiming a method/framework is new before baselines and bottlenecks are demonstrated.
 - Distinguish clearly between FL framework, experiment repo, and research method.
+- Documentation updates are Codex-owned by default. Do not delegate Markdown edits to Claude Code unless explicitly requested by the user.
 
 For implementation tasks:
 
@@ -160,6 +162,7 @@ For implementation tasks:
 - Verify at least one quick run for the mode being changed.
 - Do not modify unrelated docs or `demo/` unless asked.
 - Use `rg` for search and `apply_patch` for edits.
+- When preparing a Claude Code handoff, scope it to code/tests only and include: "Do not modify Markdown/docs files; report required doc updates in the final summary."
 
 For planning tasks:
 
@@ -175,13 +178,6 @@ Run the test suite:
 venv/bin/python -m pytest
 ```
 
-Classification track (archived stage-1 baseline, reuses precomputed embeddings):
-
-```bash
-venv/bin/python scripts/run_embedding_demo.py --mode all \
-  --artifact data/processed/ppe_real_embeddings_exp006.npz --profile oom-safe ...
-```
-
 Detection track (current) — once built, runs via the modern Flower API:
 
 ```bash
@@ -190,10 +186,3 @@ flwr run . deploy       # real 3-node deployment (SuperLink on Mac, SuperNodes o
 ```
 
 Flower quickstart reference (do not modify unless asked): `cd demo && flwr run .`
-
-## Documentation Standards
-
-- Keep docs focused and concise.
-- Prefer relative links between local docs.
-- Use tables for structured comparisons.
-- Keep heading levels hierarchical.
