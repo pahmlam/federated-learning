@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from src.data.manifest_generator import DEFAULT_CORE_PPE
+from src.utils.env import fl_env_values
 
 # Canonical class order: index 0 is background, PPE classes are 1..8.
 PPE_CORE_CLASSES: tuple[str, ...] = DEFAULT_CORE_PPE
@@ -36,6 +37,7 @@ class DetectionConfig:
     output_dir: str = DEFAULT_DET_OUTPUT_DIR
     manifest_path: str = DEFAULT_DET_MANIFEST_PATH
     root_dir: str = DEFAULT_DET_ROOT_DIR
+    client_id: str | None = None
     num_clients: int = 3
     num_classes: int = NUM_DETECTION_CLASSES
     image_size: int = 512
@@ -62,6 +64,41 @@ class DetectionConfig:
         field_names = set(cls.__dataclass_fields__)
         init_values = {key: value for key, value in normalized.items() if key in field_names}
         return cls(**init_values).normalized()
+
+    @classmethod
+    def from_env_and_overrides(
+        cls,
+        overrides: dict[str, Any] | None = None,
+        *,
+        env_path: str | None = None,
+        env_overrides: bool = False,
+    ) -> "DetectionConfig":
+        """Build config from defaults, ``.env`` values, and explicit overrides.
+
+        Default precedence is ``defaults < env < overrides``. Flower deployment
+        can set ``env_overrides=True`` to let env replace run_config values that
+        still equal dataclass defaults while preserving explicit run_config
+        overrides such as ``num-clients=2``.
+        """
+
+        raw_overrides = overrides or {}
+        normalized_overrides = {
+            key.replace("-", "_"): value for key, value in raw_overrides.items()
+        }
+        field_names = set(cls.__dataclass_fields__)
+        init_values = {
+            key: value for key, value in normalized_overrides.items() if key in field_names
+        }
+        env_values = fl_env_values(cls, path=env_path)
+        if env_overrides:
+            default_config = cls()
+            merged = {**init_values, **env_values}
+            for key, value in init_values.items():
+                if getattr(default_config, key) != value:
+                    merged[key] = value
+        else:
+            merged = {**env_values, **init_values}
+        return cls(**merged).normalized()
 
 
 def _validate_detection_config(config: DetectionConfig) -> None:

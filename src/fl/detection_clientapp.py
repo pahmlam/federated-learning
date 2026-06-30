@@ -104,13 +104,17 @@ def load_detection_client_context(
         config.root_dir,
         image_size=config.image_size,
     )
-    return config, bundle, select_detection_client(context, bundle)
+    return config, bundle, select_detection_client(context, bundle, client_id=config.client_id)
 
 
 def detection_config_from_context(context: Context) -> DetectionConfig:
     """Build detection config, letting node_config override data location."""
 
-    values = dict(context.run_config)
+    config = DetectionConfig.from_env_and_overrides(
+        dict(context.run_config),
+        env_overrides=True,
+    )
+    node_values = {}
     for source, target in (
         ("manifest-path", "manifest-path"),
         ("manifest_path", "manifest-path"),
@@ -118,16 +122,21 @@ def detection_config_from_context(context: Context) -> DetectionConfig:
         ("root_dir", "root-dir"),
         ("data-root", "root-dir"),
         ("data_root", "root-dir"),
+        ("client-id", "client-id"),
+        ("client_id", "client-id"),
     ):
         if source in context.node_config:
-            values[target] = context.node_config[source]
-    config = DetectionConfig.from_run_config(values)
-    return replace(config, num_clients=max(1, int(config.num_clients)))
+            node_values[target.replace("-", "_")] = context.node_config[source]
+    if node_values:
+        config = replace(config, **node_values).normalized()
+    return replace(config, num_clients=max(1, int(config.num_clients))).normalized()
 
 
 def select_detection_client(
     context: Context,
     bundle: DetectionDatasetBundle,
+    *,
+    client_id: str | None = None,
 ) -> DetectionClientData:
     """Choose a site shard for this node.
 
@@ -140,7 +149,10 @@ def select_detection_client(
     if len(bundle.clients) == 1:
         return bundle.clients[0]
 
-    explicit = context.node_config.get("client-id", context.node_config.get("client_id"))
+    explicit = context.node_config.get(
+        "client-id",
+        context.node_config.get("client_id", client_id),
+    )
     if explicit is not None:
         explicit_text = str(explicit)
         for client in bundle.clients:

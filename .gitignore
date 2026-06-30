@@ -1,4 +1,6 @@
 venv/
+.env
+.env.local
 /md/
 .claude/
 .agent/

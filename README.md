@@ -3,7 +3,7 @@
 This repository is a Federated Learning research and demo workspace for
 camera/vision tasks on edge deployments.
 
-Current active track:
+Current test workload:
 
 - **PPE object detection** with 8 core classes:
   `helmet`, `safety-vest`, `safety-suit`, `face-mask-medical`, `gloves`,
@@ -15,7 +15,12 @@ Current active track:
 - Metric: mAP@0.5:0.95, mAP@0.5, mAP@0.75, reported per client/site and as a
   weighted distributed aggregate.
 
-Archived track:
+The broader goal is to build a reusable FL system first. PPE detection is the
+current workload used to validate orchestration, data partitioning, distributed
+evaluation, and communication/runtime behavior before going deeper on model
+quality or other tasks.
+
+Archived workload:
 
 - EXP-001 to EXP-010 are stage-1 PPE classification baselines over a proxy
   image-level `safe/unsafe` label. They are kept for history, but the active PPE
@@ -92,6 +97,46 @@ venv/bin/pip install -r requirements.txt
 venv/bin/pip install -e .
 ```
 
+Create a local `.env` on every machine:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` for each machine. The env file is intended to describe the FL
+runtime and the current workload inputs, not a single experiment. PPE detection
+is only the current test workload. Config precedence is:
+
+```text
+code defaults < .env < CLI args
+pyproject/Flower defaults < .env < explicit flwr --run-config / SuperNode node-config
+```
+
+`FL_DET_*` names are still accepted as legacy aliases, but new machine configs
+should use `FL_*`.
+
+Common examples:
+
+```bash
+# Mac server / local simulation
+FL_RUN_ID=fl-system-smoke
+FL_OUTPUT_DIR=outputs/fl-system-smoke
+FL_MANIFEST_PATH=configs/datasets/ppe_detection_exp011_manifest.csv
+FL_DATA_ROOT=data/ppe
+FL_NUM_CLIENTS=3
+
+# Ubuntu site-a
+FL_CLIENT_ID=site-a
+FL_MANIFEST_PATH=data/ppe_site_a/manifest.csv
+FL_DATA_ROOT=data/ppe_site_a
+FL_DEVICE=auto
+
+# Colab site-b/site-c: change client id and shard path per notebook
+FL_CLIENT_ID=site-b
+FL_MANIFEST_PATH=data/ppe_site_b/manifest.csv
+FL_DATA_ROOT=data/ppe_site_b
+```
+
 Run tests:
 
 ```bash
@@ -118,32 +163,16 @@ Do not commit raw images, annotations, checkpoints, or large outputs.
 Run this before cross-machine deployment.
 
 ```bash
-venv/bin/python scripts/run_detection_sim.py \
-  --mode all \
-  --manifest configs/datasets/ppe_detection_exp011_manifest.csv \
-  --root-dir data/ppe \
-  --output-dir outputs/EXP-011 \
-  --exp-id EXP-011 \
-  --image-size 512 \
-  --batch-size 2 \
-  --local-epochs 2 \
-  --centralized-epochs 4 \
-  --num-rounds 5 \
-  --lr 0.005 \
-  --device cuda \
-  --num-workers 0
+venv/bin/python scripts/run_detection_sim.py --mode all --device cuda
 ```
 
-For a tiny CPU smoke, reduce the manifest/subset and use:
+For a tiny CPU smoke, override only what differs from `.env`:
 
 ```bash
 venv/bin/python scripts/run_detection_sim.py \
   --mode federated \
-  --manifest configs/datasets/ppe_detection_exp011_manifest.csv \
-  --root-dir data/ppe \
   --output-dir outputs/EXP-011-smoke \
   --exp-id EXP-011-smoke \
-  --image-size 512 \
   --batch-size 1 \
   --local-epochs 1 \
   --num-rounds 1 \
@@ -195,18 +224,16 @@ Run this on the machine that has `data/ppe`:
 
 ```bash
 venv/bin/python scripts/export_detection_subset.py \
-  --manifest configs/datasets/ppe_detection_exp011_manifest.csv \
-  --root-dir data/ppe \
-  --output-dir outputs/EXP-012/shards \
+  --output-dir outputs/fl-deploy/shards \
   --overwrite
 ```
 
 This creates:
 
 ```text
-outputs/EXP-012/shards/site-a.zip
-outputs/EXP-012/shards/site-b.zip
-outputs/EXP-012/shards/site-c.zip
+outputs/fl-deploy/shards/site-a.zip
+outputs/fl-deploy/shards/site-b.zip
+outputs/fl-deploy/shards/site-c.zip
 ```
 
 Copy each zip to its matching client and unzip it into a local folder:
@@ -261,12 +288,12 @@ Start `site-a`:
 ```bash
 venv/bin/flower-supernode \
   --insecure \
-  --superlink 100.100.58.9:9092 \
-  --node-config 'client-id="site-a" manifest-path="data/ppe_site_a/manifest.csv" root-dir="data/ppe_site_a"'
+  --superlink 100.100.58.9:9092
 ```
 
-If Ubuntu has the full dataset instead of an exported shard, point
-`manifest-path` and `root-dir` to those local paths.
+If Ubuntu has the full dataset instead of an exported shard, set
+`FL_MANIFEST_PATH` and `FL_DATA_ROOT` in `.env`, or override with
+`--node-config`.
 
 ### 5. Start a Colab SuperNode
 
@@ -297,8 +324,7 @@ Start `site-b`:
 ```bash
 proxychains4 venv/bin/flower-supernode \
   --insecure \
-  --superlink 100.100.58.9:9092 \
-  --node-config 'client-id="site-b" manifest-path="data/ppe_site_b/manifest.csv" root-dir="data/ppe_site_b"'
+  --superlink 100.100.58.9:9092
 ```
 
 For the second Colab, use a different hostname and `site-c` paths:
@@ -306,8 +332,7 @@ For the second Colab, use a different hostname and `site-c` paths:
 ```bash
 proxychains4 venv/bin/flower-supernode \
   --insecure \
-  --superlink 100.100.58.9:9092 \
-  --node-config 'client-id="site-c" manifest-path="data/ppe_site_c/manifest.csv" root-dir="data/ppe_site_c"'
+  --superlink 100.100.58.9:9092
 ```
 
 ### 6. Submit a deployment run
@@ -316,7 +341,7 @@ From the Mac, in the repo root:
 
 ```bash
 venv/bin/flwr run . deploy --stream \
-  --run-config 'exp-id="EXP-012" output-dir="outputs/EXP-012" num-clients=3 num-rounds=1 local-epochs=1 batch-size=2 image-size=512 lr=0.005 device="auto" num-workers=0'
+  --run-config 'num-clients=3'
 ```
 
 For the 2-Colab smoke setup, use `num-clients=2` and start only `site-b` and
@@ -324,7 +349,7 @@ For the 2-Colab smoke setup, use `num-clients=2` and start only `site-b` and
 
 ```bash
 venv/bin/flwr run . deploy --stream \
-  --run-config 'exp-id="EXP-012-smoke-colab2" output-dir="outputs/EXP-012-smoke-colab2" num-clients=2 num-rounds=1 local-epochs=1 batch-size=2 image-size=512 lr=0.005 device="auto" num-workers=0'
+  --run-config 'num-clients=2'
 ```
 
 Inspect runs:

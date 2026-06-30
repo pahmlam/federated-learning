@@ -1,3 +1,4 @@
+import pytest
 from flwr.app import Context, RecordDict
 from PIL import Image
 
@@ -13,6 +14,49 @@ from src.fl.detection_clientapp import (
 )
 from src.fl.detection_serverapp import _round_config
 from src.utils.detection_config import DetectionConfig
+
+
+def _supported_env_names():
+    base = (
+        "RUN_ID",
+        "OUTPUT_DIR",
+        "MANIFEST_PATH",
+        "DATA_ROOT",
+        "CLIENT_ID",
+        "NUM_CLIENTS",
+        "NUM_CLASSES",
+        "IMAGE_SIZE",
+        "BATCH_SIZE",
+        "LOCAL_EPOCHS",
+        "CENTRALIZED_EPOCHS",
+        "NUM_ROUNDS",
+        "LR",
+        "MOMENTUM",
+        "WEIGHT_DECAY",
+        "NUM_WORKERS",
+        "SCORE_THRESHOLD",
+        "DEVICE",
+        "PRETRAINED",
+        "SEED",
+    )
+    legacy = {
+        "RUN_ID": "EXP_ID",
+        "DATA_ROOT": "ROOT_DIR",
+    }
+    names = []
+    for suffix in base:
+        names.append(f"FL_{suffix}")
+        names.append(f"FL_DET_{legacy.get(suffix, suffix)}")
+    return names
+
+
+@pytest.fixture(autouse=True)
+def _isolate_env_from_local_dotenv(tmp_path, monkeypatch):
+    import src.utils.env as env_module
+
+    monkeypatch.setattr(env_module, "DEFAULT_ENV_PATH", tmp_path / "missing.env")
+    for name in _supported_env_names():
+        monkeypatch.delenv(name, raising=False)
 
 
 def _context(run_config=None, node_config=None, node_id=0):
@@ -82,6 +126,43 @@ def test_node_config_overrides_data_location(tmp_path):
     config = detection_config_from_context(context)
     assert config.manifest_path == str(manifest)
     assert config.root_dir == str(tmp_path)
+
+
+def test_env_supplies_data_location_for_clientapp(tmp_path, monkeypatch):
+    _, manifest = _make_bundle(tmp_path)
+    monkeypatch.setenv("FL_MANIFEST_PATH", str(manifest))
+    monkeypatch.setenv("FL_DATA_ROOT", str(tmp_path))
+
+    config = detection_config_from_context(_context())
+
+    assert config.manifest_path == str(manifest)
+    assert config.root_dir == str(tmp_path)
+
+
+def test_node_config_overrides_env_data_location(tmp_path, monkeypatch):
+    _, manifest = _make_bundle(tmp_path)
+    monkeypatch.setenv("FL_MANIFEST_PATH", "env.csv")
+    monkeypatch.setenv("FL_DATA_ROOT", "env-root")
+    context = _context(
+        node_config={"manifest-path": str(manifest), "root-dir": str(tmp_path)}
+    )
+
+    config = detection_config_from_context(context)
+
+    assert config.manifest_path == str(manifest)
+    assert config.root_dir == str(tmp_path)
+
+
+def test_env_client_id_selects_matching_client(tmp_path, monkeypatch):
+    bundle, manifest = _make_bundle(tmp_path)
+    monkeypatch.setenv("FL_MANIFEST_PATH", str(manifest))
+    monkeypatch.setenv("FL_DATA_ROOT", str(tmp_path))
+    monkeypatch.setenv("FL_CLIENT_ID", "site-b")
+    config = detection_config_from_context(_context())
+
+    client = select_detection_client(_context(), bundle, client_id=config.client_id)
+
+    assert client.client_label == "site-b"
 
 
 def test_server_round_config_contains_detection_hyperparameters():

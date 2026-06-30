@@ -15,6 +15,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from src.data.detection_manifest import MANIFEST_COLUMNS
+from src.utils.detection_config import DetectionConfig
 from src.utils.io import write_json
 
 
@@ -103,10 +104,11 @@ def _summarize_site(rows: list[dict[str, str]], zip_path: Path) -> dict[str, Any
 
 
 def main() -> None:
+    env_config = DetectionConfig.from_env_and_overrides({})
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--manifest", required=True)
-    parser.add_argument("--root-dir", default="data/ppe")
-    parser.add_argument("--output-dir", required=True)
+    parser.add_argument("--manifest", default=env_config.manifest_path)
+    parser.add_argument("--root-dir", default=env_config.root_dir)
+    parser.add_argument("--output-dir", default=str(Path(env_config.output_dir) / "shards"))
     parser.add_argument("--overwrite", action="store_true")
     args = parser.parse_args()
 

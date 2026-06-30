@@ -34,17 +34,19 @@ from src.data.detection_manifest import (
     summarize_detection_rows,
     write_detection_manifest,
 )
+from src.utils.detection_config import DetectionConfig
 
 
 def main() -> None:
+    env_config = DetectionConfig.from_env_and_overrides({})
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--voc-dir", default="data/ppe/voc_labels")
-    parser.add_argument("--images-dir", default="data/ppe/images")
-    parser.add_argument("--output", required=True)
+    parser.add_argument("--voc-dir", default=str(Path(env_config.root_dir) / "voc_labels"))
+    parser.add_argument("--images-dir", default=str(Path(env_config.root_dir) / "images"))
+    parser.add_argument("--output", default=env_config.manifest_path)
     parser.add_argument("--sites", default="site-a,site-b,site-c")
     parser.add_argument("--per-site", type=int, default=300)
     parser.add_argument("--val-fraction", type=float, default=0.2)
-    parser.add_argument("--seed", type=int, default=2026)
+    parser.add_argument("--seed", type=int, default=env_config.seed)
     args = parser.parse_args()
 
     samples = collect_detection_samples(args.voc_dir, args.images_dir)

@@ -30,6 +30,11 @@ def test_from_run_config_maps_dashed_keys_and_ignores_unknown():
     assert config.image_size == 320
 
 
+def test_from_run_config_accepts_client_id():
+    config = DetectionConfig.from_run_config({"client-id": "site-b"})
+    assert config.client_id == "site-b"
+
+
 def test_normalized_rejects_too_small_image_size():
     with pytest.raises(ValueError, match="image_size must be >= 64"):
         DetectionConfig(image_size=32).normalized()

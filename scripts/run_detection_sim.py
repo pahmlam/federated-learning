@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import argparse
 import sys
-from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -38,24 +37,38 @@ from src.utils.resources import get_resource_snapshot
 
 
 def main() -> None:
+    env_config = DetectionConfig.from_env_and_overrides({})
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--mode", choices=["centralized", "local-only", "federated", "all"], default="all"
     )
-    parser.add_argument("--manifest", required=True)
-    parser.add_argument("--root-dir", default="data/ppe")
-    parser.add_argument("--output-dir", default="outputs/EXP-011")
-    parser.add_argument("--exp-id", default="EXP-011")
-    parser.add_argument("--image-size", type=int, default=512)
-    parser.add_argument("--batch-size", type=int, default=2)
-    parser.add_argument("--local-epochs", type=int, default=2)
-    parser.add_argument("--centralized-epochs", type=int, default=4)
-    parser.add_argument("--num-rounds", type=int, default=5)
-    parser.add_argument("--lr", type=float, default=0.005)
-    parser.add_argument("--device", choices=["auto", "cpu", "cuda"], default="auto")
-    parser.add_argument("--no-pretrained", action="store_true")
-    parser.add_argument("--num-workers", type=int, default=0)
-    parser.add_argument("--seed", type=int, default=2026)
+    parser.add_argument("--manifest", default=env_config.manifest_path)
+    parser.add_argument("--root-dir", default=env_config.root_dir)
+    parser.add_argument("--output-dir", default=env_config.output_dir)
+    parser.add_argument("--exp-id", default=env_config.exp_id)
+    parser.add_argument("--image-size", type=int, default=env_config.image_size)
+    parser.add_argument("--batch-size", type=int, default=env_config.batch_size)
+    parser.add_argument("--local-epochs", type=int, default=env_config.local_epochs)
+    parser.add_argument(
+        "--centralized-epochs", type=int, default=env_config.centralized_epochs
+    )
+    parser.add_argument("--num-rounds", type=int, default=env_config.num_rounds)
+    parser.add_argument("--lr", type=float, default=env_config.lr)
+    parser.add_argument("--device", choices=["auto", "cpu", "cuda"], default=env_config.device)
+    pretrained_group = parser.add_mutually_exclusive_group()
+    pretrained_group.add_argument(
+        "--pretrained",
+        dest="pretrained",
+        action="store_true",
+        default=env_config.pretrained,
+    )
+    pretrained_group.add_argument(
+        "--no-pretrained",
+        dest="pretrained",
+        action="store_false",
+    )
+    parser.add_argument("--num-workers", type=int, default=env_config.num_workers)
+    parser.add_argument("--seed", type=int, default=env_config.seed)
     args = parser.parse_args()
 
     print(
@@ -67,6 +80,8 @@ def main() -> None:
     config = DetectionConfig(
         exp_id=args.exp_id,
         output_dir=args.output_dir,
+        manifest_path=args.manifest,
+        root_dir=args.root_dir,
         num_clients=len(bundle.clients),
         image_size=args.image_size,
         batch_size=args.batch_size,
@@ -75,7 +90,7 @@ def main() -> None:
         num_rounds=args.num_rounds,
         lr=args.lr,
         device=args.device,
-        pretrained=not args.no_pretrained,
+        pretrained=args.pretrained,
         num_workers=args.num_workers,
         seed=args.seed,
     ).normalized()

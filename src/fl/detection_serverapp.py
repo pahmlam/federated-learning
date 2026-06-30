@@ -14,7 +14,10 @@ app = ServerApp()
 
 @app.main()
 def main(grid: Grid, context: Context) -> None:
-    config = DetectionConfig.from_run_config(context.run_config)
+    config = DetectionConfig.from_env_and_overrides(
+        dict(context.run_config),
+        env_overrides=True,
+    )
     model = build_detection_model(
         num_classes=config.num_classes,
         pretrained=config.pretrained,
