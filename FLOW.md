@@ -38,6 +38,11 @@ Raw text logs are kept separate from structured artifacts:
 The ServerApp creates the raw-log directory and records expected log paths in
 `deployment_summary.json`; it does not fabricate terminal logs.
 
+`scripts/capture_flower_logs.py` can capture `flwr log <RUN_ID> deploy --show`
+after a run into `outputs/logs/<EXP-ID>/flower_run_log.txt` and writes
+`log_capture_summary.json`. SuperLink/SuperNode terminal logs still need to be
+redirected with `tee` while the run is active.
+
 This code path is implemented, unit-tested, and verified end-to-end by the
 `outputs/EXP-012-rerun/` deployment smoke.
 
@@ -453,6 +458,8 @@ outputs/<exp-id>/
   final_head.npz            # written only when Flower exposes final aggregated arrays
 
 outputs/logs/<exp-id>/
+  flower_run_log.txt        # captured after run via scripts/capture_flower_logs.py
+  log_capture_summary.json  # capture status/command/paths
   server_log.txt            # manual/raw log capture, if collected
   client_site_b_log.txt     # manual/raw log capture, if collected
   client_site_c_log.txt     # manual/raw log capture, if collected
@@ -495,7 +502,8 @@ but no `.npz`.
 
 Still incomplete:
 
-- Automatic raw terminal log capture.
+- Automatic SuperLink/SuperNode terminal log capture after the fact. These logs
+  must be redirected with `tee` during the run.
 - Actual client identities/counts in structured artifacts, unless a future
   Flower API or ClientApp-side reporting path exposes them cleanly.
 - Future deployment runs should continue journaling from `deployment_summary.json`
@@ -520,6 +528,8 @@ Implemented:
   final global head as `final_head.npz`.
 - Structured deployment logging: server writes `round_metrics.json` and records
   expected raw log paths under `outputs/logs/<EXP-ID>/`.
+- Raw Flower run log capture helper: `scripts/capture_flower_logs.py` captures
+  `flwr log <RUN_ID> deploy --show` after a run.
 - Site-side final-head evaluation: `scripts/evaluate_final_detection_head.py`
   loads `final_head.npz`, evaluates on a local site validation shard, and writes a
   JSON metrics report.
@@ -541,7 +551,8 @@ Partially implemented:
 
 Missing:
 
-- Automatic raw server/client terminal log capture.
+- Automatic SuperLink/SuperNode terminal log capture after the run has already
+  started; use `tee` during the run.
 - Actual responding client IDs/counts in structured artifacts.
 - Export/push final model/head to clients as a formal handoff step.
 - Site-side video inference command for operational use.
@@ -561,6 +572,7 @@ Flower deployment run completes
   -> write outputs/<EXP-ID>/deployment_summary.json   [done]
   -> write outputs/<EXP-ID>/round_metrics.json        [done]
   -> create outputs/logs/<EXP-ID>/ for raw logs       [done]
+  -> capture flwr log <RUN_ID> into outputs/logs      [done: helper]
   -> save final global detection head (final_head.npz) [done, when arrays exposed]
   -> each site can load final head                     [done, unit-tested]
   -> each site can run local eval command              [done, unit-tested]
@@ -587,9 +599,20 @@ outputs/<EXP-ID>/
   inference_site_c/*.json      # generated, do not commit
 
 outputs/logs/<EXP-ID>/
+  flower_run_log.txt        # captured via scripts/capture_flower_logs.py
+  log_capture_summary.json  # captured via scripts/capture_flower_logs.py
   server_log.txt            # expected/manual raw log
   client_site_b_log.txt     # expected/manual raw log
   client_site_c_log.txt     # expected/manual raw log
+```
+
+Capture run log after deployment:
+
+```bash
+venv/bin/python scripts/capture_flower_logs.py \
+  --exp-id <EXP-ID> \
+  --run-id <FLOWER_RUN_ID> \
+  --print-commands
 ```
 
 Site-side final-head evaluation command:

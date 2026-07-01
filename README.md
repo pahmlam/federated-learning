@@ -380,6 +380,16 @@ Git.
 - Raw Flower/SuperLink/SuperNode text logs belong under `outputs/logs/<EXP-ID>/`.
   The deployment summary records expected log paths and a `flwr log <RUN_ID>
   deploy --show` hint when the run id is available.
+- After a deployment run, capture the Flower logstream with:
+  ```bash
+  venv/bin/python scripts/capture_flower_logs.py \
+    --exp-id <EXP-ID> \
+    --run-id <FLOWER_RUN_ID> \
+    --print-commands
+  ```
+  This writes `flower_run_log.txt` and `log_capture_summary.json` under
+  `outputs/logs/<EXP-ID>/`. SuperLink/SuperNode terminal logs must still be
+  redirected with `tee` during the run if you need those raw files.
 - `round_metrics.json` contains Flower weighted aggregates by round. Flower
   `Result` does not expose actual client identities in this artifact path, so
   participation fields are recorded as `null` rather than guessed.

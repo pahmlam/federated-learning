@@ -12,6 +12,7 @@ Current script:
 - `export_detection_subset.py`: exports per-site detection shards for deployment clients.
 - `evaluate_final_detection_head.py`: loads a deployed `final_head.npz` and evaluates it on one site's labeled validation shard.
 - `run_detection_inference.py`: loads a deployed `final_head.npz` and runs operational inference on one local image or image directory, writing per-image detection JSON and optional annotated images.
+- `capture_flower_logs.py`: captures `flwr log <RUN_ID> deploy --show` into `outputs/logs/<EXP-ID>/flower_run_log.txt` and prints manual `tee` commands for SuperLink/SuperNode logs.
 
 Quick smoke command:
 
@@ -61,4 +62,13 @@ venv/bin/python scripts/run_detection_inference.py \
   --device auto \
   --score-threshold 0.5 \
   --save-images
+```
+
+Capture Flower deployment logs after a run:
+
+```bash
+venv/bin/python scripts/capture_flower_logs.py \
+  --exp-id EXP-013-dropout-smoke \
+  --run-id <FLOWER_RUN_ID> \
+  --print-commands
 ```

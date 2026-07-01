@@ -1396,6 +1396,24 @@ flwr log 6660954678908856684 deploy --show
 - **Communication cost:** `estimated_completed_communication_cost_bytes` vẫn là estimate theo configured clients × completed rounds, không phải actual replies.
 - **Next:** với run deployment tiếp theo, journal từ cả `deployment_summary.json` và `round_metrics.json`; nếu cần actual client IDs thì lưu thêm raw `flwr log <RUN_ID> deploy --show`.
 
+<a id="raw-log-capture-helper-2026-07-01"></a>
+### WIP — Raw Runtime Log Capture Helper
+
+- **Mục tiêu:** lưu raw Flower logstream vào đúng layout `outputs/logs/<EXP-ID>/` để bổ sung bằng chứng vận hành cho deployment runs.
+- **Đã thêm:** `scripts/capture_flower_logs.py`.
+- **Luồng sau run:** dùng run id để capture:
+  ```bash
+  venv/bin/python scripts/capture_flower_logs.py \
+    --exp-id <EXP-ID> \
+    --run-id <FLOWER_RUN_ID> \
+    --print-commands
+  ```
+- **Artifacts:** script ghi:
+  - `outputs/logs/<EXP-ID>/flower_run_log.txt`
+  - `outputs/logs/<EXP-ID>/log_capture_summary.json`
+- **Giới hạn:** script không thể lấy lại stdout/stderr của SuperLink/SuperNode terminal đã chạy từ trước. Nếu cần `server_log.txt` hoặc `client_site_*_log.txt`, phải redirect bằng `tee` ngay khi start process.
+- **Next:** capture `flwr log` cho run deployment tiếp theo; nếu rerun EXP-013 hoặc EXP-014, dùng `--print-commands` để chuẩn bị tee logs trước khi chạy.
+
 <a id="exp-013-dropout-smoke"></a>
 ### EXP-013 — PPE Detection Deployment Robustness Smoke: Relaxed Min-Node Thresholds
 - **Mã Thử Nghiệm:** EXP-013-dropout-smoke
@@ -1464,6 +1482,6 @@ venv/bin/flwr run . deploy --stream \
 ```
 
 #### 7. Bước Tiếp Theo (Next Steps)
-- [ ] Nếu cần xác nhận dropout thật, lưu Flower server log cho run này hoặc rerun có chủ đích với đúng 1 SuperNode online và ghi run ID/log.
+- [ ] Nếu cần xác nhận dropout thật, dùng `scripts/capture_flower_logs.py` với run ID hoặc rerun có chủ đích với đúng 1 SuperNode online và redirect SuperLink/SuperNode logs bằng `tee`.
 - [ ] Bổ sung artifact ghi actual responding clients / num examples per round nếu Flower result expose đủ thông tin.
 - [ ] Nếu `final_head.npz` cần kiểm tra site-side, chạy `evaluate_final_detection_head.py` trên site đã tham gia và lưu `final_head_site_*_metrics.json`.
