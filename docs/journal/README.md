@@ -33,6 +33,7 @@ Thư mục này dùng **một file duy nhất** (`docs/journal/README.md`) để
 | **EXP-010** | 2026-06-25 | PPE embedding MLP head capacity sweep (480/3, H=64 headline) | Thành công | 0.6333/0.6312 | 0.6667/0.6643 | 0.6333/0.6329 | [Chi tiết](#exp-010) |
 | **EXP-011** | 2026-06-29 | PPE detection GPU simulation baseline (Faster R-CNN head-only) | Thành công | mAP 0.1179 / mAP50 0.2755 | mAP 0.0657 / mAP50 0.1601 | mAP 0.0951 / mAP50 0.2351 | [Chi tiết](#exp-011) |
 | **EXP-012-smoke** | 2026-06-29/30 | PPE detection real deployment: Mac SuperLink + 2 Colab SuperNodes | Thành công + artifacts/post-FL eval verified | N/A | N/A | mAP 0.0170 / mAP50 0.0498 | [Chi tiết](#exp-012-smoke-colab2) |
+| **EXP-013** | 2026-07-01 | PPE detection deployment robustness smoke: relaxed min-node thresholds | Thành công | N/A | N/A | mAP 0.0514 / mAP50 0.1244 | [Chi tiết](#exp-013-dropout-smoke) |
 | **WIP** | 2026-06-25 | PPE detection pivot + federated deployment + DVC sync | Đang làm | N/A | N/A | N/A | [Chi tiết](#wip-detection-pivot) |
 
 ## 2026-06-12
@@ -1372,3 +1373,97 @@ flwr log 6660954678908856684 deploy --show
     --run-config 'num-clients=2 min-train-nodes=1 min-evaluate-nodes=1 min-available-nodes=1'
   ```
 - **Next:** chạy một dropout smoke thật, cố tình dừng/ngắt một Colab, rồi journal status/artifact rõ ràng.
+
+<a id="deployment-observability-2026-07-01"></a>
+### WIP — Deployment Observability: Structured Round Metrics + Raw Log Paths
+
+- **Mục tiêu:** làm deployment run tự giải thích được từ artifacts, không phụ thuộc hoàn toàn vào Flower logstream.
+- **Đã thêm:** future deployment runs sẽ ghi `outputs/<EXP-ID>/round_metrics.json` bên cạnh `deployment_summary.json` và `final_head.npz`.
+- **Nội dung `round_metrics.json`:**
+  - `exp_id`, `status`, `num_rounds_configured`, `rounds_completed`
+  - configured `num_clients`
+  - effective `min_train_nodes`, `min_evaluate_nodes`, `min_available_nodes`
+  - `update_size_bytes`
+  - `planned_communication_cost_bytes`
+  - `estimated_completed_communication_cost_bytes`
+  - per-round train/evaluate metrics dạng Flower weighted aggregate
+  - weighted `num-examples` nếu Flower metric record expose
+- **Raw logs:** artifact helper tạo/tham chiếu `outputs/logs/<EXP-ID>/` với expected paths:
+  - `server_log.txt`
+  - `client_site_b_log.txt`
+  - `client_site_c_log.txt`
+- **Giới hạn quan trọng:** Flower `Result` path hiện không expose actual client identities / actual participating client counts. Artifact ghi các field này là `null` kèm note, không tự đoán.
+- **Communication cost:** `estimated_completed_communication_cost_bytes` vẫn là estimate theo configured clients × completed rounds, không phải actual replies.
+- **Next:** với run deployment tiếp theo, journal từ cả `deployment_summary.json` và `round_metrics.json`; nếu cần actual client IDs thì lưu thêm raw `flwr log <RUN_ID> deploy --show`.
+
+<a id="exp-013-dropout-smoke"></a>
+### EXP-013 — PPE Detection Deployment Robustness Smoke: Relaxed Min-Node Thresholds
+- **Mã Thử Nghiệm:** EXP-013-dropout-smoke
+- **Ngày Thực Hiện:** 2026-07-01
+- **Trạng Thái:** Thành công theo artifact `deployment_summary.json`
+- **Git Commit Hash:** `[pending]`
+
+---
+
+#### 1. Mục Tiêu (Objective)
+- Kiểm tra ServerApp có thể chạy deployment khi min-node thresholds được relax xuống `1` cho topology active 2 Colab.
+- Đây là **robustness smoke**, không phải model-quality baseline; không so sánh trực tiếp mAP với EXP-012 strict 2-client.
+
+#### 2. Cấu Hình & Thiết Lập (Configuration)
+- **Topology:** Mac SuperLink + Colab SuperNode(s) qua Tailscale userspace/proxychains.
+- **Run config chính:**
+  - `exp-id="EXP-013-dropout-smoke"`
+  - `output-dir="outputs/EXP-013-dropout-smoke"`
+  - `num-clients=2`
+  - `min-train-nodes=1`
+  - `min-evaluate-nodes=1`
+  - `min-available-nodes=1`
+  - `num-rounds=1`
+  - `local-epochs=1`
+  - `batch-size=2`
+  - `image-size=512`
+  - `lr=0.005`
+  - `device="cuda"`
+  - `num-workers=0`
+- **Model setup:** Faster R-CNN MobileNetV3-Large-FPN pretrained, freeze backbone+FPN, aggregate detection head only.
+
+#### 3. Kết Quả (Results)
+
+| Mode | Status | Rounds Completed | Train Loss | mAP@0.5:0.95 | mAP@0.5 | mAP@0.75 | Runtime |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| Federated deployment robustness smoke | completed | 1 | 0.6738 | 0.0514 | 0.1244 | 0.0257 | 372.57s |
+
+- `deployment_summary.json` ghi:
+  - `status`: `completed`
+  - `rounds_completed`: `1`
+  - `min_train_nodes`: `1`
+  - `min_evaluate_nodes`: `1`
+  - `min_available_nodes`: `1`
+  - `update_size_bytes`: `58,204,640`
+  - `planned_communication_cost_bytes`: `232,818,560`
+  - `estimated_completed_communication_cost_bytes`: `232,818,560`
+- `final_head.npz` được ghi thành công, khoảng 56 MB, gồm 14 named detection-head arrays.
+
+#### 4. Artifact Check
+- **Output path:** `outputs/EXP-013-dropout-smoke/`
+- **Files:**
+  - `outputs/EXP-013-dropout-smoke/deployment_summary.json`
+  - `outputs/EXP-013-dropout-smoke/final_head.npz`
+- `final_head.npz` có đúng 14 parameter arrays, gồm RPN head và ROI box head/predictor.
+
+#### 5. Quan Sát & Rủi Ro (Observations & Risks)
+- Run này xác nhận Flower app đã nhận và dùng được relaxed min-node config; run hoàn tất và sinh final head.
+- Artifact EXP-013 được tạo trước khi có `round_metrics.json`; future deployment runs sẽ ghi participation fields là `null` kèm note vì Flower `Result` hiện không expose actual client identities / actual sampled client count. Nếu cần chứng minh chắc chắn "1-of-2 client participated", cần đối chiếu thêm Flower logstream.
+- Communication estimate hiện vẫn tính theo configured `num_clients=2`, không phải actual responding clients. Với relaxed-min-node runs, đây nên đọc là planned/upper-bound estimate trừ khi artifact ghi actual client count.
+- Metric chỉ dùng để xác nhận smoke vận hành; không dùng làm kết luận chất lượng mô hình.
+
+#### 6. Lệnh Tái Lập (Reproducibility)
+```bash
+venv/bin/flwr run . deploy --stream \
+  --run-config 'exp-id="EXP-013-dropout-smoke" output-dir="outputs/EXP-013-dropout-smoke" num-clients=2 min-train-nodes=1 min-evaluate-nodes=1 min-available-nodes=1 num-rounds=1 local-epochs=1 batch-size=2 image-size=512 lr=0.005 device="cuda" num-workers=0'
+```
+
+#### 7. Bước Tiếp Theo (Next Steps)
+- [ ] Nếu cần xác nhận dropout thật, lưu Flower server log cho run này hoặc rerun có chủ đích với đúng 1 SuperNode online và ghi run ID/log.
+- [ ] Bổ sung artifact ghi actual responding clients / num examples per round nếu Flower result expose đủ thông tin.
+- [ ] Nếu `final_head.npz` cần kiểm tra site-side, chạy `evaluate_final_detection_head.py` trên site đã tham gia và lưu `final_head_site_*_metrics.json`.

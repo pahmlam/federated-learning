@@ -57,6 +57,9 @@ device = "auto"
 pretrained = true
 num-workers = 0
 seed = 2026
+min-train-nodes = 2
+min-evaluate-nodes = 2
+min-available-nodes = 2
 
 
 #######################################################################

@@ -66,6 +66,7 @@ def main(grid: Grid, context: Context) -> None:
             runtime_seconds=time.time() - start_perf,
             exception_raised=exception_raised,
             head_param_names=head_param_names,
+            run_id=getattr(context, "run_id", None),
         )
 
 

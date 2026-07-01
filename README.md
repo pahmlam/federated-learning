@@ -374,6 +374,15 @@ Git.
   shards or `pretrained=false` first.
 - `deployment_summary.json` records the effective `min_train_nodes`,
   `min_evaluate_nodes`, and `min_available_nodes` thresholds used by ServerApp.
+- Structured deployment artifacts are written under `outputs/<EXP-ID>/`:
+  `deployment_summary.json`, `round_metrics.json`, and `final_head.npz` when a
+  final aggregated head is available.
+- Raw Flower/SuperLink/SuperNode text logs belong under `outputs/logs/<EXP-ID>/`.
+  The deployment summary records expected log paths and a `flwr log <RUN_ID>
+  deploy --show` hint when the run id is available.
+- `round_metrics.json` contains Flower weighted aggregates by round. Flower
+  `Result` does not expose actual client identities in this artifact path, so
+  participation fields are recorded as `null` rather than guessed.
 
 ## Legacy Synthetic Demo
 

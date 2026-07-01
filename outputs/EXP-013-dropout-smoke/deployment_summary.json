@@ -1,0 +1,44 @@
+{
+  "config": {
+    "batch_size": 2,
+    "device": "cuda",
+    "image_size": 512,
+    "local_epochs": 1,
+    "lr": 0.005,
+    "min_available_nodes": 1,
+    "min_evaluate_nodes": 1,
+    "min_train_nodes": 1,
+    "num_clients": 2,
+    "num_rounds": 1,
+    "pretrained": true,
+    "seed": 2026
+  },
+  "estimated_completed_communication_cost_bytes": 232818560,
+  "exp_id": "EXP-013-dropout-smoke",
+  "final_metrics": {
+    "map": 0.05136366933584213,
+    "map_50": 0.12438245862722397,
+    "map_75": 0.025730984285473824,
+    "train_loss": 0.6738313354551793
+  },
+  "mode": "federated-deployment",
+  "note": "Server holds no raw data; metrics are weighted distributed-evaluation aggregates returned by clients.",
+  "output_paths": {
+    "deployment_summary": "outputs/EXP-013-dropout-smoke/deployment_summary.json",
+    "final_head": "outputs/EXP-013-dropout-smoke/final_head.npz"
+  },
+  "planned_communication_cost_bytes": 232818560,
+  "rounds_completed": 1,
+  "server": {
+    "aggregation_strategy": "FedAvg",
+    "evaluation": "distributed",
+    "weighted_by_key": "num-examples"
+  },
+  "status": "completed",
+  "timing": {
+    "ended_at": "2026-07-01T03:02:20.275848+00:00",
+    "runtime_seconds": 372.572,
+    "started_at": "2026-07-01T02:56:07.704157+00:00"
+  },
+  "update_size_bytes": 58204640
+}

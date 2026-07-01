@@ -24,8 +24,19 @@ A deployment run now writes its own server-side artifacts:
 - `deployment_summary.json` (run config, server settings, update size, planned +
   completed communication cost, timing, final distributed-eval metrics, output
   paths, and a `status` of `completed` / `partial` / `failed`),
+- `round_metrics.json` (per-round Flower weighted aggregate train/eval metrics,
+  weighted `num-examples`, communication estimates, and explicit unknown-client
+  participation fields),
 - `final_head.npz` (the final aggregated detection head, written only when
   Flower exposes final aggregated arrays).
+
+Raw text logs are kept separate from structured artifacts:
+
+- structured JSON/model artifacts: `outputs/<EXP-ID>/`,
+- raw SuperLink/SuperNode/Flower logs: `outputs/logs/<EXP-ID>/`.
+
+The ServerApp creates the raw-log directory and records expected log paths in
+`deployment_summary.json`; it does not fabricate terminal logs.
 
 This code path is implemented, unit-tested, and verified end-to-end by the
 `outputs/EXP-012-rerun/` deployment smoke.
@@ -438,13 +449,27 @@ Deployment now writes server-side artifacts from `src/fl/detection_serverapp.py`
 ```text
 outputs/<exp-id>/
   deployment_summary.json   # always written (status completed | partial | failed)
+  round_metrics.json        # per-round Flower weighted aggregate metrics
   final_head.npz            # written only when Flower exposes final aggregated arrays
+
+outputs/logs/<exp-id>/
+  server_log.txt            # manual/raw log capture, if collected
+  client_site_b_log.txt     # manual/raw log capture, if collected
+  client_site_c_log.txt     # manual/raw log capture, if collected
 ```
 
 `deployment_summary.json` is the deployment equivalent of the simulation
 `summary.json`: it records run config, server settings (FedAvg, weighted by
 `num-examples`), head update size, communication cost, timing, and the final
 distributed-evaluation metrics (`train_loss`, `map`, `map_50`, `map_75`).
+It also links to `round_metrics.json`, expected raw log paths under
+`outputs/logs/<exp-id>/`, and a `flwr log <RUN_ID> deploy --show` command when
+the run id is available.
+
+`round_metrics.json` records per-round train/evaluate metrics as Flower weighted
+aggregates. It intentionally records `actual_train_clients`,
+`actual_evaluate_clients`, and `actual_client_ids` as `null` because Flower
+`Result` does not expose per-client identities in this artifact path.
 
 `status` reflects what Flower actually produced:
 
@@ -460,15 +485,21 @@ Communication cost is reported two ways so partial runs are not over-counted:
 - `planned_communication_cost_bytes` — based on the configured `num_rounds`.
 - `estimated_completed_communication_cost_bytes` — based on `rounds_completed`.
 
+For relaxed-min-node runs, completed communication cost is still an estimate
+based on configured clients because actual responder counts are not exposed by
+Flower `Result`.
+
 `final_head.npz` exists **only** when final aggregated arrays are available; a
 `failed` run (and a `partial` run whose head never aggregated) writes the summary
 but no `.npz`.
 
 Still incomplete:
 
-- Per-client deployment metric files and a server log artifact.
+- Automatic raw terminal log capture.
+- Actual client identities/counts in structured artifacts, unless a future
+  Flower API or ClientApp-side reporting path exposes them cleanly.
 - Future deployment runs should continue journaling from `deployment_summary.json`
-  instead of only from logstream.
+  and `round_metrics.json` instead of only from logstream.
 
 ## 10. What Exists Today
 
@@ -487,6 +518,8 @@ Implemented:
 - Two-Colab real deployment smoke.
 - Deployment artifacts: server writes `deployment_summary.json` and saves the
   final global head as `final_head.npz`.
+- Structured deployment logging: server writes `round_metrics.json` and records
+  expected raw log paths under `outputs/logs/<EXP-ID>/`.
 - Site-side final-head evaluation: `scripts/evaluate_final_detection_head.py`
   loads `final_head.npz`, evaluates on a local site validation shard, and writes a
   JSON metrics report.
@@ -508,7 +541,8 @@ Partially implemented:
 
 Missing:
 
-- Per-client deployment metric files and a server log artifact.
+- Automatic raw server/client terminal log capture.
+- Actual responding client IDs/counts in structured artifacts.
 - Export/push final model/head to clients as a formal handoff step.
 - Site-side video inference command for operational use.
 - Actual Colab dropout smoke run with relaxed min-node thresholds.
@@ -525,6 +559,8 @@ evaluation command.
 ```text
 Flower deployment run completes
   -> write outputs/<EXP-ID>/deployment_summary.json   [done]
+  -> write outputs/<EXP-ID>/round_metrics.json        [done]
+  -> create outputs/logs/<EXP-ID>/ for raw logs       [done]
   -> save final global detection head (final_head.npz) [done, when arrays exposed]
   -> each site can load final head                     [done, unit-tested]
   -> each site can run local eval command              [done, unit-tested]
@@ -541,14 +577,19 @@ Remaining artifact/handoff work, in suggested order:
 ```text
 outputs/<EXP-ID>/
   deployment_summary.json   # done
+  round_metrics.json        # done for future deployment runs
   final_head.npz            # done (when Flower exposes final arrays)
   final_head_site_b_metrics.json  # done for EXP-012-rerun
   final_head_site_c_metrics.json  # done for EXP-012-rerun
-  server_log.txt            # next
   client_site_b_metrics.json  # next: per-client deployment metric files
   client_site_c_metrics.json
   inference_site_b/*.json      # generated, do not commit
   inference_site_c/*.json      # generated, do not commit
+
+outputs/logs/<EXP-ID>/
+  server_log.txt            # expected/manual raw log
+  client_site_b_log.txt     # expected/manual raw log
+  client_site_c_log.txt     # expected/manual raw log
 ```
 
 Site-side final-head evaluation command:
@@ -575,6 +616,6 @@ venv/bin/python scripts/run_detection_inference.py \
   --save-images
 ```
 
-Next: add operational video inference and improve deployment artifact capture.
-Before model-quality comparisons, run one explicit dropout smoke with relaxed
-min-node thresholds and journal it separately from strict baseline metrics.
+Next: add actual raw log capture or a clean ClientApp-side per-client reporting
+path if Flower exposes one. Before model-quality comparisons, keep relaxed
+min-node/dropout runs separate from strict baseline metrics.

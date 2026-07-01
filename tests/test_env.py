@@ -175,3 +175,46 @@ def test_detection_config_keeps_explicit_run_config_override(tmp_path, monkeypat
     )
 
     assert config.num_clients == 2
+
+
+def test_detection_config_env_can_override_pyproject_default_min_nodes(
+    tmp_path, monkeypatch
+):
+    env_file = tmp_path / ".env"
+    env_file.write_text("FL_MIN_TRAIN_NODES=1\n", encoding="utf-8")
+    config = DetectionConfig.from_env_and_overrides(
+        {
+            "num-clients": 2,
+            "min-train-nodes": 2,
+            "min-evaluate-nodes": 2,
+            "min-available-nodes": 2,
+        },
+        env_path=env_file,
+        env_overrides=True,
+    )
+
+    assert config.num_clients == 2
+    assert config.min_train_nodes == 1
+    assert config.effective_min_evaluate_nodes == 2
+    assert config.effective_min_available_nodes == 2
+
+
+def test_detection_config_keeps_explicit_run_config_min_node_override(
+    tmp_path, monkeypatch
+):
+    env_file = tmp_path / ".env"
+    env_file.write_text("FL_MIN_TRAIN_NODES=2\n", encoding="utf-8")
+    config = DetectionConfig.from_env_and_overrides(
+        {
+            "num-clients": 2,
+            "min-train-nodes": 1,
+            "min-evaluate-nodes": 1,
+            "min-available-nodes": 1,
+        },
+        env_path=env_file,
+        env_overrides=True,
+    )
+
+    assert config.min_train_nodes == 1
+    assert config.min_evaluate_nodes == 1
+    assert config.min_available_nodes == 1

@@ -132,11 +132,40 @@ class DetectionConfig:
             default_config = cls()
             merged = {**init_values, **env_values}
             for key, value in init_values.items():
-                if getattr(default_config, key) != value:
+                if not _is_default_like_run_config_value(
+                    default_config,
+                    key,
+                    value,
+                    init_values=init_values,
+                ):
                     merged[key] = value
         else:
             merged = {**env_values, **init_values}
         return cls(**merged).normalized()
+
+
+def _is_default_like_run_config_value(
+    default_config: DetectionConfig,
+    key: str,
+    value: Any,
+    *,
+    init_values: dict[str, Any],
+) -> bool:
+    """Return True when a Flower run_config value should behave like a default.
+
+    Flower requires keys to be present in ``pyproject.toml`` before they can be
+    overridden from CLI. For optional min-node knobs, that means pyproject uses
+    strict values equal to ``num_clients`` even though the dataclass default is
+    ``None``. Treat those strict values as default-like so per-machine ``.env``
+    can still override them when ``env_overrides=True``.
+    """
+
+    if getattr(default_config, key) == value:
+        return True
+    if key in {"min_train_nodes", "min_evaluate_nodes", "min_available_nodes"}:
+        strict_num_clients = int(init_values.get("num_clients", default_config.num_clients))
+        return value in {None, strict_num_clients}
+    return False
 
 
 def _validate_detection_config(config: DetectionConfig) -> None:

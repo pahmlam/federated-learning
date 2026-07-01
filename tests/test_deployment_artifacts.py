@@ -6,6 +6,7 @@ not require a real Flower network, GPU, or dataset; ``ArrayRecord`` /
 """
 
 import json
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -14,11 +15,18 @@ from flwr.serverapp.strategy.result import Result
 
 from src.fl.deployment_artifacts import (
     AGGREGATION_STRATEGY,
+    DEPLOYMENT_SITE_LABELS,
+    METRICS_SEMANTICS,
+    PARTICIPATION_NOTE,
     STATUS_COMPLETED,
+    STATUS_EXPECTED,
     STATUS_FAILED,
     STATUS_PARTIAL,
     WEIGHTED_BY_KEY,
     build_deployment_summary,
+    build_log_paths,
+    build_round_metrics,
+    deployment_log_dir,
     derive_status,
     finalize_deployment_artifacts,
     latest_round_metrics,
@@ -344,3 +352,170 @@ def test_finalize_partial_uses_completed_rounds_for_cost(tmp_path):
     assert data["estimated_completed_communication_cost_bytes"] == 1000 * 2 * 1 * 2
     # final head still saved because round 1 produced an aggregated head
     assert (tmp_path / "final_head.npz").is_file()
+
+
+# --- round_metrics.json ----------------------------------------------------
+
+
+def _round_metrics_kwargs():
+    return dict(status="completed", update_size_bytes=1000, result=_fake_result(rounds=2))
+
+
+def test_build_round_metrics_structure(tmp_path):
+    config = _config(tmp_path)
+    metrics = build_round_metrics(config, **_round_metrics_kwargs())
+
+    assert metrics["exp_id"] == "EXP-TEST"
+    assert metrics["num_rounds_configured"] == 2
+    assert metrics["rounds_completed"] == 2
+    assert metrics["num_clients"] == 2
+    assert metrics["min_train_nodes"] == 2  # strict default == num_clients
+    assert metrics["min_evaluate_nodes"] == 2
+    assert metrics["min_available_nodes"] == 2
+    assert metrics["metrics_semantics"] == METRICS_SEMANTICS
+    assert metrics["weighted_by_key"] == WEIGHTED_BY_KEY
+    assert metrics["planned_communication_cost_bytes"] == 1000 * 2 * 2 * 2
+    assert metrics["estimated_completed_communication_cost_bytes"] == 1000 * 2 * 2 * 2
+
+    rounds = metrics["rounds"]
+    assert [r["round"] for r in rounds] == [1, 2]
+    first = rounds[0]
+    # weighted aggregate holds scalar metrics with num-examples stripped out.
+    assert "train_loss" in first["train"]["weighted_aggregate"]
+    assert WEIGHTED_BY_KEY not in first["train"]["weighted_aggregate"]
+    assert first["train"]["weighted_num_examples"] == 10
+    assert "map" in first["evaluate"]["weighted_aggregate"]
+    assert first["evaluate"]["weighted_num_examples"] == 10
+
+
+def test_build_round_metrics_client_participation_is_null_not_invented(tmp_path):
+    metrics = build_round_metrics(_config(tmp_path), **_round_metrics_kwargs())
+
+    participation = metrics["client_participation"]
+    assert participation["actual_train_clients"] is None
+    assert participation["actual_evaluate_clients"] is None
+    assert participation["actual_client_ids"] is None
+    assert "does not expose" in participation["participation_note"]
+    assert participation["participation_note"] == PARTICIPATION_NOTE
+    # per-round entries are equally honest about unknown participation
+    for entry in metrics["rounds"]:
+        assert entry["actual_train_clients"] is None
+        assert entry["actual_evaluate_clients"] is None
+        assert entry["actual_client_ids"] is None
+
+
+def test_build_round_metrics_is_json_serializable(tmp_path):
+    metrics = build_round_metrics(_config(tmp_path), **_round_metrics_kwargs())
+    # Must not raise; also round-trips to the same structure.
+    assert json.loads(json.dumps(metrics))["rounds_completed"] == 2
+
+
+def test_build_round_metrics_empty_result_has_no_rounds(tmp_path):
+    metrics = build_round_metrics(
+        _config(tmp_path),
+        status="failed",
+        update_size_bytes=1000,
+        result=_empty_result(),
+    )
+    assert metrics["rounds"] == []
+    assert metrics["rounds_completed"] == 0
+    assert metrics["estimated_completed_communication_cost_bytes"] == 0
+    json.dumps(metrics)  # still serializable
+
+
+def test_build_round_metrics_none_result_has_no_rounds(tmp_path):
+    metrics = build_round_metrics(
+        _config(tmp_path), status="failed", update_size_bytes=1000, result=None
+    )
+    assert metrics["rounds"] == []
+    assert metrics["rounds_completed"] == 0
+
+
+# --- raw-log paths ---------------------------------------------------------
+
+
+def test_deployment_log_dir_maps_output_dir_to_logs_subtree(tmp_path):
+    config = _config(tmp_path, output_dir="outputs/EXP-012", exp_id="EXP-012")
+    assert deployment_log_dir(config) == Path("outputs/logs/EXP-012")
+
+
+def test_build_log_paths_expected_when_files_absent(tmp_path):
+    config = _config(tmp_path, output_dir=str(tmp_path / "EXP-TEST"), exp_id="EXP-TEST")
+    logs = build_log_paths(config, run_id=42)
+
+    log_dir = tmp_path / "logs" / "EXP-TEST"
+    assert logs["log_dir"] == str(log_dir)
+    assert logs["server_log"]["path"] == str(log_dir / "server_log.txt")
+    assert logs["server_log"]["status"] == STATUS_EXPECTED
+    assert set(logs["client_logs"]) == set(DEPLOYMENT_SITE_LABELS)
+    assert logs["client_logs"]["site-b"]["path"] == str(
+        log_dir / "client_site_b_log.txt"
+    )
+    assert logs["client_logs"]["site-c"]["path"] == str(
+        log_dir / "client_site_c_log.txt"
+    )
+    assert all(entry["status"] == STATUS_EXPECTED for entry in logs["client_logs"].values())
+    assert logs["flower_log_command"] == "flwr log 42 deploy --show"
+
+
+def test_build_log_paths_present_when_file_exists(tmp_path):
+    config = _config(tmp_path, output_dir=str(tmp_path / "EXP-TEST"), exp_id="EXP-TEST")
+    log_dir = tmp_path / "logs" / "EXP-TEST"
+    log_dir.mkdir(parents=True)
+    (log_dir / "server_log.txt").write_text("boot\n", encoding="utf-8")
+
+    logs = build_log_paths(config)
+    assert logs["server_log"]["status"] == "present"
+    assert logs["flower_log_command"] == "flwr log <run-id> deploy --show"
+
+
+# --- write path wires round_metrics + logs together ------------------------
+
+
+def test_write_deployment_artifacts_writes_round_metrics_and_log_dir(tmp_path):
+    config = _config(tmp_path, output_dir=str(tmp_path / "EXP-TEST"), exp_id="EXP-TEST")
+    paths = write_deployment_artifacts(
+        config,
+        result=_fake_result(rounds=2),
+        update_size_bytes=1000,
+        started_at="2026-06-30T00:00:00+00:00",
+        ended_at="2026-06-30T00:05:00+00:00",
+        runtime_seconds=300.0,
+        status="completed",
+        head_param_names=["fc.weight", "fc.bias"],
+        run_id=7,
+    )
+
+    round_metrics_path = tmp_path / "EXP-TEST" / "round_metrics.json"
+    assert round_metrics_path.is_file()
+    assert paths["round_metrics_path"] == str(round_metrics_path)
+    # raw-log dir is created for manual logs
+    assert (tmp_path / "logs" / "EXP-TEST").is_dir()
+
+    round_data = json.loads(round_metrics_path.read_text(encoding="utf-8"))
+    assert round_data["rounds_completed"] == 2
+
+    summary = json.loads(
+        (tmp_path / "EXP-TEST" / "deployment_summary.json").read_text(encoding="utf-8")
+    )
+    # summary references round_metrics + log locations + log command
+    assert summary["output_paths"]["round_metrics_path"] == str(round_metrics_path)
+    assert summary["logs"]["server_log"]["path"].endswith("logs/EXP-TEST/server_log.txt")
+    assert summary["flower_log_command"] == "flwr log 7 deploy --show"
+    assert "estimated_completed_communication_cost_note" in summary
+
+
+def test_build_deployment_summary_backward_compatible_keys(tmp_path):
+    # Existing callers pass no run_id; summary must still carry the logs section.
+    summary = build_deployment_summary(
+        _config(tmp_path),
+        status="completed",
+        update_size_bytes=1000,
+        started_at="2026-06-30T00:00:00+00:00",
+        ended_at="2026-06-30T00:01:00+00:00",
+        runtime_seconds=60.0,
+        result=_fake_result(),
+        output_paths={"deployment_summary": "x.json"},
+    )
+    assert summary["flower_log_command"] == "flwr log <run-id> deploy --show"
+    assert summary["logs"]["client_logs"]["site-b"]["status"] == STATUS_EXPECTED

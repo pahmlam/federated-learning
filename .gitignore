@@ -20,6 +20,8 @@ data/partitions/*
 !data/partitions/.gitkeep
 outputs/checkpoints/*
 !outputs/checkpoints/.gitkeep
+outputs/logs/*
+!outputs/logs/.gitkeep
 
 # Large archives/checkpoints
 *.zip
@@ -29,6 +31,7 @@ outputs/checkpoints/*
 *.pt
 *.pth
 *.ckpt
+*.npz
 
 ppe/
 data/dvc-storage/*
