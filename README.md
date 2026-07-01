@@ -49,8 +49,9 @@ Cross-machine deployment smoke is working.
 - EXP-012-smoke ran with Mac SuperLink + 2 Colab SuperNodes over Tailscale
   userspace networking.
 - 1 round completed end-to-end with distributed evaluation.
-- The full target deployment is still: Mac server + Ubuntu RTX3060 + 2 Colab
-  clients.
+- The active deployment target is now Mac server + 2 Colab clients. Ubuntu
+  RTX3060 / `site-a` is retired from deployment because it cannot be run/joined
+  under the current access constraints.
 
 Experiment notes are tracked in:
 
@@ -123,13 +124,7 @@ FL_RUN_ID=fl-system-smoke
 FL_OUTPUT_DIR=outputs/fl-system-smoke
 FL_MANIFEST_PATH=configs/datasets/ppe_detection_exp011_manifest.csv
 FL_DATA_ROOT=data/ppe
-FL_NUM_CLIENTS=3
-
-# Ubuntu site-a
-FL_CLIENT_ID=site-a
-FL_MANIFEST_PATH=data/ppe_site_a/manifest.csv
-FL_DATA_ROOT=data/ppe_site_a
-FL_DEVICE=auto
+FL_NUM_CLIENTS=2
 
 # Colab site-b/site-c: change client id and shard path per notebook
 FL_CLIENT_ID=site-b
@@ -187,12 +182,12 @@ venv/bin/python scripts/run_detection_sim.py \
 | Role | Machine | Flower role | Data |
 | --- | --- | --- | --- |
 | Server | Mac local | SuperLink + ServerApp submitter | No raw data |
-| Client `site-a` | Ubuntu + RTX3060 | SuperNode | Own PPE shard |
 | Client `site-b` | Google Colab #1 | SuperNode | Own PPE shard |
 | Client `site-c` | Google Colab #2 | SuperNode | Own PPE shard |
 
-Networking is through Tailscale. `--insecure` is used only because the machines
-are inside a private tailnet.
+Networking is through Tailscale userspace networking and proxychains for Colab.
+`--insecure` is used only because the machines are inside a private tailnet.
+`site-a` / Ubuntu RTX3060 is not part of the active deployment target.
 
 ### 1. Prepare Flower federation config
 
@@ -205,7 +200,7 @@ or your Flower configuration file:
 default = "local-sim"
 
 [tool.flwr.federations.local-sim]
-options.num-supernodes = 3
+options.num-supernodes = 2
 options.backend.client-resources.num-cpus = 1
 options.backend.client-resources.num-gpus = 0
 
@@ -228,7 +223,7 @@ venv/bin/python scripts/export_detection_subset.py \
   --overwrite
 ```
 
-This creates:
+This may create all sites present in the manifest:
 
 ```text
 outputs/fl-deploy/shards/site-a.zip
@@ -236,22 +231,23 @@ outputs/fl-deploy/shards/site-b.zip
 outputs/fl-deploy/shards/site-c.zip
 ```
 
-Copy each zip to its matching client and unzip it into a local folder:
+For the active deployment, copy only `site-b.zip` and `site-c.zip` to the two
+Colab clients and unzip each into a local folder:
 
 ```bash
-mkdir -p data/ppe_site_a
-unzip site-a.zip -d data/ppe_site_a
+mkdir -p data/ppe_site_b
+unzip site-b.zip -d data/ppe_site_b
 ```
 
 After unzip, each client folder must contain:
 
 ```text
-data/ppe_site_a/manifest.csv
-data/ppe_site_a/images/...
-data/ppe_site_a/voc_labels/...
+data/ppe_site_b/manifest.csv
+data/ppe_site_b/images/...
+data/ppe_site_b/voc_labels/...
 ```
 
-Use the matching folder/name for `site-b` and `site-c`.
+Use the matching folder/name for `site-c`.
 
 ### 3. Start the Mac SuperLink
 
@@ -272,30 +268,7 @@ tailscale ip -4
 
 In the examples below, replace `100.100.58.9` with that IP.
 
-### 4. Start an Ubuntu SuperNode
-
-On Ubuntu, after joining the same tailnet and installing dependencies:
-
-```bash
-python -m venv venv
-venv/bin/pip install --upgrade pip
-venv/bin/pip install -r requirements.txt
-venv/bin/pip install -e .
-```
-
-Start `site-a`:
-
-```bash
-venv/bin/flower-supernode \
-  --insecure \
-  --superlink 100.100.58.9:9092
-```
-
-If Ubuntu has the full dataset instead of an exported shard, set
-`FL_MANIFEST_PATH` and `FL_DATA_ROOT` in `.env`, or override with
-`--node-config`.
-
-### 5. Start a Colab SuperNode
+### 4. Start Colab SuperNodes
 
 Colab usually cannot create a real Tailscale TUN interface. Use Tailscale
 userspace networking with a SOCKS proxy.
@@ -324,7 +297,8 @@ Start `site-b`:
 ```bash
 proxychains4 venv/bin/flower-supernode \
   --insecure \
-  --superlink 100.100.58.9:9092
+  --superlink 100.100.58.9:9092 \
+  --node-config 'client-id="site-b" manifest-path="data/ppe_site_b/manifest.csv" root-dir="data/ppe_site_b"'
 ```
 
 For the second Colab, use a different hostname and `site-c` paths:
@@ -332,25 +306,30 @@ For the second Colab, use a different hostname and `site-c` paths:
 ```bash
 proxychains4 venv/bin/flower-supernode \
   --insecure \
-  --superlink 100.100.58.9:9092
+  --superlink 100.100.58.9:9092 \
+  --node-config 'client-id="site-c" manifest-path="data/ppe_site_c/manifest.csv" root-dir="data/ppe_site_c"'
 ```
 
-### 6. Submit a deployment run
+### 5. Submit a deployment run
 
 From the Mac, in the repo root:
 
 ```bash
 venv/bin/flwr run . deploy --stream \
-  --run-config 'num-clients=3'
+  --run-config 'num-clients=2'
 ```
 
-For the 2-Colab smoke setup, use `num-clients=2` and start only `site-b` and
-`site-c`:
+The deployment baseline is strict by default: train, evaluate, and availability
+all require `num-clients` nodes. For a Colab dropout robustness smoke only, you
+can relax the minimums:
 
 ```bash
 venv/bin/flwr run . deploy --stream \
-  --run-config 'num-clients=2'
+  --run-config 'num-clients=2 min-train-nodes=1 min-evaluate-nodes=1 min-available-nodes=1'
 ```
+
+Relaxed-min-node runs test system behavior under stragglers; do not compare
+their mAP directly with strict two-client baseline runs.
 
 Inspect runs:
 
@@ -358,6 +337,27 @@ Inspect runs:
 venv/bin/flwr list deploy
 venv/bin/flwr log <RUN_ID> deploy --show
 ```
+
+### 6. Run site-side inference
+
+After a deployment run writes `final_head.npz`, each site can load that final
+head and run detection on local unlabeled images. The server still does not need
+raw images.
+
+```bash
+venv/bin/python scripts/run_detection_inference.py \
+  --head-path outputs/EXP-012-rerun/final_head.npz \
+  --input-dir <site-local-images> \
+  --output-dir outputs/EXP-012-rerun/inference_site_b \
+  --device auto \
+  --score-threshold 0.5 \
+  --save-images
+```
+
+The script writes one JSON file per image with class labels, scores, and boxes
+in original-image coordinates. With `--save-images`, it also writes annotated
+preview images. These outputs are generated artifacts and should stay out of
+Git.
 
 ### Deployment Notes
 
@@ -372,6 +372,8 @@ venv/bin/flwr log <RUN_ID> deploy --show
   increasing rounds.
 - If networking is slow through Colab userspace SOCKS, debug with smaller
   shards or `pretrained=false` first.
+- `deployment_summary.json` records the effective `min_train_nodes`,
+  `min_evaluate_nodes`, and `min_available_nodes` thresholds used by ServerApp.
 
 ## Legacy Synthetic Demo
 

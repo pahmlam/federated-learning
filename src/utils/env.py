@@ -32,6 +32,9 @@ _ENV_TO_FIELD = {
     "FL_DEVICE": "device",
     "FL_PRETRAINED": "pretrained",
     "FL_SEED": "seed",
+    "FL_MIN_TRAIN_NODES": "min_train_nodes",
+    "FL_MIN_EVALUATE_NODES": "min_evaluate_nodes",
+    "FL_MIN_AVAILABLE_NODES": "min_available_nodes",
 }
 _LEGACY_ENV_TO_FIELD = {
     "FL_DET_EXP_ID": "exp_id",
@@ -185,7 +188,12 @@ def _parse_bool(raw_value: str, env_name: str) -> bool:
 
 def _resolve_annotation(annotation: Any) -> Any:
     if isinstance(annotation, str):
-        return {"str": str, "int": int, "float": float, "bool": bool}.get(annotation, str)
+        # ``from __future__ import annotations`` makes field types strings, e.g.
+        # "int" or "int | None". Strip an optional ``| None`` before resolving so
+        # nullable numeric fields parse as their base type instead of falling to str.
+        parts = [part for part in annotation.replace(" ", "").split("|") if part != "None"]
+        key = parts[0] if len(parts) == 1 else annotation
+        return {"str": str, "int": int, "float": float, "bool": bool}.get(key, str)
     origin = get_origin(annotation)
     if origin is None:
         return annotation

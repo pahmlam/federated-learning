@@ -42,7 +42,7 @@ exp-id = "EXP-011"
 output-dir = "outputs/EXP-011"
 manifest-path = "configs/datasets/ppe_detection_exp011_manifest.csv"
 root-dir = "data/ppe"
-num-clients = 3
+num-clients = 2
 num-classes = 9
 image-size = 512
 batch-size = 2
@@ -78,7 +78,7 @@ seed = 2026
 # default = "local-sim"
 
 # [tool.flwr.federations.local-sim]
-# options.num-supernodes = 3
+# options.num-supernodes = 2
 # options.backend.client-resources.num-cpus = 1
 # options.backend.client-resources.num-gpus = 0
 

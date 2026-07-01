@@ -31,6 +31,12 @@ def ppe_label_to_index() -> dict[str, int]:
     return {name.strip().lower(): index + 1 for index, name in enumerate(PPE_CORE_CLASSES)}
 
 
+def ppe_index_to_label() -> dict[int, str]:
+    """Map detection label index (1-based) -> canonical PPE class name (0 = background)."""
+
+    return {index + 1: name for index, name in enumerate(PPE_CORE_CLASSES)}
+
+
 @dataclass(frozen=True)
 class DetectionConfig:
     exp_id: str = DEFAULT_DET_EXP_ID
@@ -53,10 +59,42 @@ class DetectionConfig:
     device: str = "auto"
     pretrained: bool = True
     seed: int = 2026
+    # Straggler/dropout robustness knobs. Unset (None) keeps the strict baseline:
+    # the ServerApp then requires all ``num_clients`` for train/evaluate/availability.
+    # Set explicitly (e.g. 1) to let a round proceed with a Colab node disconnected.
+    min_train_nodes: int | None = None
+    min_evaluate_nodes: int | None = None
+    min_available_nodes: int | None = None
 
     def normalized(self) -> "DetectionConfig":
         _validate_detection_config(self)
         return self
+
+    @property
+    def effective_min_train_nodes(self) -> int:
+        """Min clients required to train a round (defaults to strict ``num_clients``)."""
+
+        return self.num_clients if self.min_train_nodes is None else self.min_train_nodes
+
+    @property
+    def effective_min_evaluate_nodes(self) -> int:
+        """Min clients required to evaluate a round (defaults to strict ``num_clients``)."""
+
+        return (
+            self.num_clients
+            if self.min_evaluate_nodes is None
+            else self.min_evaluate_nodes
+        )
+
+    @property
+    def effective_min_available_nodes(self) -> int:
+        """Min clients that must be connected before a round (defaults to ``num_clients``)."""
+
+        return (
+            self.num_clients
+            if self.min_available_nodes is None
+            else self.min_available_nodes
+        )
 
     @classmethod
     def from_run_config(cls, values: dict[str, Any]) -> "DetectionConfig":
@@ -126,3 +164,13 @@ def _validate_detection_config(config: DetectionConfig) -> None:
         raise ValueError("score_threshold must be in [0, 1)")
     if config.device not in VALID_DEVICES:
         raise ValueError(f"device must be one of {sorted(VALID_DEVICES)}")
+    for field_name in ("min_train_nodes", "min_evaluate_nodes", "min_available_nodes"):
+        value = getattr(config, field_name)
+        if value is not None and value < 1:
+            raise ValueError(f"{field_name} must be >= 1 when set")
+        if value is not None and value > config.num_clients:
+            raise ValueError(f"{field_name} must be <= num_clients when set")
+    if config.effective_min_available_nodes < config.effective_min_train_nodes:
+        raise ValueError("min_available_nodes must be >= min_train_nodes")
+    if config.effective_min_available_nodes < config.effective_min_evaluate_nodes:
+        raise ValueError("min_available_nodes must be >= min_evaluate_nodes")

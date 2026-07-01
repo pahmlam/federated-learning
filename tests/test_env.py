@@ -26,6 +26,9 @@ def _supported_env_names():
         "DEVICE",
         "PRETRAINED",
         "SEED",
+        "MIN_TRAIN_NODES",
+        "MIN_EVALUATE_NODES",
+        "MIN_AVAILABLE_NODES",
     )
     legacy = {
         "RUN_ID": "EXP_ID",
@@ -67,6 +70,27 @@ def test_fl_env_values_parse_supported_types(tmp_path, monkeypatch):
     assert values["pretrained"] is False
     assert "unknown" not in values
     assert "output_dir" not in values
+
+
+def test_fl_env_values_parse_min_node_overrides_as_int(tmp_path):
+    env_file = tmp_path / ".env"
+    env_file.write_text(
+        "\n".join(
+            [
+                "FL_MIN_TRAIN_NODES=1",
+                "FL_MIN_EVALUATE_NODES=1",
+                "FL_MIN_AVAILABLE_NODES=2",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    values = fl_env_values(DetectionConfig, path=env_file)
+
+    # int | None fields must parse as int, not fall back to str.
+    assert values["min_train_nodes"] == 1
+    assert values["min_evaluate_nodes"] == 1
+    assert values["min_available_nodes"] == 2
+    assert all(isinstance(values[key], int) for key in values)
 
 
 def test_legacy_detection_env_alias_still_works(tmp_path, monkeypatch):

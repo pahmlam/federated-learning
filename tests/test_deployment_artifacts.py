@@ -135,13 +135,61 @@ def test_build_deployment_summary_contains_expected_keys(tmp_path):
     assert "communication_cost_bytes" not in summary
     assert summary["rounds_completed"] == 2
     for key in ("num_clients", "num_rounds", "image_size", "batch_size",
-                "local_epochs", "lr", "device", "pretrained", "seed"):
+                "local_epochs", "lr", "device", "pretrained", "seed",
+                "min_train_nodes", "min_evaluate_nodes", "min_available_nodes"):
         assert key in summary["config"]
+    # Strict default: min-node thresholds equal num_clients when unset.
+    assert summary["config"]["min_train_nodes"] == summary["config"]["num_clients"]
+    assert summary["config"]["min_evaluate_nodes"] == summary["config"]["num_clients"]
+    assert summary["config"]["min_available_nodes"] == summary["config"]["num_clients"]
     # latest-round metrics flow through
     assert summary["final_metrics"]["map"] == pytest.approx(0.2)
     assert summary["final_metrics"]["map_50"] == pytest.approx(0.4)
     assert summary["final_metrics"]["train_loss"] == pytest.approx(0.4)
     assert "no raw data" in summary["note"]
+
+
+def test_summary_records_explicit_min_node_overrides(tmp_path):
+    config = _config(
+        tmp_path,
+        min_train_nodes=1,
+        min_evaluate_nodes=1,
+        min_available_nodes=1,
+    )
+    summary = build_deployment_summary(
+        config,
+        status="completed",
+        update_size_bytes=1000,
+        started_at="2026-06-30T00:00:00+00:00",
+        ended_at="2026-06-30T00:01:00+00:00",
+        runtime_seconds=60.0,
+        result=_fake_result(),
+        output_paths={"deployment_summary": "x.json"},
+    )
+
+    assert summary["config"]["num_clients"] == 2  # baseline node count unchanged
+    assert summary["config"]["min_train_nodes"] == 1
+    assert summary["config"]["min_evaluate_nodes"] == 1
+    assert summary["config"]["min_available_nodes"] == 1
+
+
+def test_deployment_summary_min_nodes_survive_json_roundtrip(tmp_path):
+    config = _config(tmp_path, min_train_nodes=1)
+    write_deployment_artifacts(
+        config,
+        result=_fake_result(),
+        update_size_bytes=1000,
+        started_at="2026-06-30T00:00:00+00:00",
+        ended_at="2026-06-30T00:01:00+00:00",
+        runtime_seconds=60.0,
+        status="completed",
+        head_param_names=["fc.weight", "fc.bias"],
+    )
+    data = json.loads((tmp_path / "deployment_summary.json").read_text(encoding="utf-8"))
+    assert data["config"]["min_train_nodes"] == 1
+    # unset fields fall back to strict num_clients
+    assert data["config"]["min_evaluate_nodes"] == 2
+    assert data["config"]["min_available_nodes"] == 2
 
 
 def test_write_deployment_artifacts_writes_summary_and_head(tmp_path):

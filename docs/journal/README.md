@@ -32,7 +32,7 @@ Thư mục này dùng **một file duy nhất** (`docs/journal/README.md`) để
 | **EXP-009** | 2026-06-25 | PPE embedding L2-normalize (cosine-style, 480/3) | Thành công | 0.6250/0.6229 | 0.6750/0.6740 | 0.6000/0.5945 | [Chi tiết](#exp-009) |
 | **EXP-010** | 2026-06-25 | PPE embedding MLP head capacity sweep (480/3, H=64 headline) | Thành công | 0.6333/0.6312 | 0.6667/0.6643 | 0.6333/0.6329 | [Chi tiết](#exp-010) |
 | **EXP-011** | 2026-06-29 | PPE detection GPU simulation baseline (Faster R-CNN head-only) | Thành công | mAP 0.1179 / mAP50 0.2755 | mAP 0.0657 / mAP50 0.1601 | mAP 0.0951 / mAP50 0.2351 | [Chi tiết](#exp-011) |
-| **EXP-012-smoke** | 2026-06-29/30 | PPE detection real deployment smoke: Mac SuperLink + 2 Colab SuperNodes | Thành công + artifacts/post-FL eval verified | N/A | N/A | mAP 0.0170 / mAP50 0.0498 | [Chi tiết](#exp-012-smoke-colab2) |
+| **EXP-012-smoke** | 2026-06-29/30 | PPE detection real deployment: Mac SuperLink + 2 Colab SuperNodes | Thành công + artifacts/post-FL eval verified | N/A | N/A | mAP 0.0170 / mAP50 0.0498 | [Chi tiết](#exp-012-smoke-colab2) |
 | **WIP** | 2026-06-25 | PPE detection pivot + federated deployment + DVC sync | Đang làm | N/A | N/A | N/A | [Chi tiết](#wip-detection-pivot) |
 
 ## 2026-06-12
@@ -933,22 +933,22 @@ Global federated confusion matrix: `[[40, 20], [24, 36]]` → safe recall `0.666
 > EXP-011 GPU simulation đã được ghi riêng trong ngày 2026-06-29.
 
 - **Ngày:** 2026-06-25
-- **Trạng thái:** Phase A scaffold + EXP-011 GPU simulation đã xong; còn Phase B deployment thật
+- **Trạng thái:** Phase A scaffold + EXP-011 GPU simulation đã xong; Phase B deployment thật chuyển sang target 2 Colab và đã pass EXP-012-smoke/EXP-012-rerun
 - **Plan đã duyệt:** `/Users/phamtunglam/.claude/plans/t-i-ngh-m-y-mac-mighty-stearns.md`
 
 ---
 
 #### Context
 - **Request:** PPE được chỉ định lại là **object detection** (không còn classification). Build lại track
-  detection + chuyển sang **federated deployment thật 3 client**.
+  detection + chuyển sang **federated deployment thật**.
 - **Goal:** dựng pipeline detection FL (freeze backbone, train head, FedAvg head), validate trong
   simulation, rồi deploy thật → đo mAP per-client.
 
 #### Quyết định đã chốt (durable)
 - **Detector:** `fasterrcnn_mobilenet_v3_large_fpn`, freeze **backbone+FPN**, chỉ train RPN head + ROI heads. FedAvg chỉ aggregate head.
 - **Lớp:** 8 PPE core (`helmet, safety-vest, safety-suit, face-mask-medical, gloves, glasses, ear-mufs, face-guard`) + background = **9 lớp**. Class order = `DEFAULT_CORE_PPE` (single source of truth).
-- **Topology:** **Mac local = server (SuperLink, aggregator, không giữ data)**; 3 client = **Ubuntu RTX3060 (site-a)** + **Colab#1 (site-b)** + **Colab#2 (site-c)**. Distributed evaluation (server không có pooled data).
-- **Mạng (Pha B):** **Tailscale** (mesh VPN), `--insecure` trong tailnet riêng.
+- **Topology active:** **Mac local = server (SuperLink, aggregator, không giữ data)**; 2 client = **Colab#1 (site-b)** + **Colab#2 (site-c)**. Distributed evaluation (server không có pooled data). **Ubuntu RTX3060/site-a đã bị loại khỏi target deployment** vì không thể chạy/join Tailscale trong điều kiện hiện tại.
+- **Mạng (Pha B):** **Tailscale userspace + proxychains** cho Colab, `--insecure` trong tailnet riêng.
 - **Metric:** mAP@0.5 + mAP@0.5:0.95 + per-class AP (torchmetrics), per-client.
 - **EXP-001→010 = stage-1 classification đã archive** (trần ~0.60 do nhãn proxy; EXP-009 L2-norm là kết luận chính).
 
@@ -977,34 +977,34 @@ Global federated confusion matrix: `[[40, 20], [24, 36]]` → safe recall `0.666
   - `pyproject.toml` — root Flower app trỏ sang detection app; thêm `[tool.flwr.federations.local-sim]` và `[tool.flwr.federations.deploy]`.
   - Tests mới: `tests/test_detection_flower_apps.py`, `tests/test_export_detection_subset.py`.
   - Verification: `101 passed`; Flower local-sim smoke trên tiny `/private/tmp` manifest pass với `pretrained=false`, CPU, 2 SuperNodes. Lưu ý Flower 1.30 dùng simulation override schema mới (`num-supernodes`, `client-resources-num-cpus`, `client-resources-num-gpus`) và tự migrate legacy federation config khi chạy.
-- **DVC dataset sync added (chuẩn bị EXP-011 trên RTX3060):**
+- **DVC dataset sync added (chuẩn bị EXP-011 GPU simulation và Colab/client sync):**
   - `data/ppe.dvc` track dataset PPE thật tại workspace path `data/ppe` (`images/`, `voc_labels/`, `labels/`, `meta-data/`).
   - Snapshot hiện tại: ~14.24 GB, 32,399 files (`md5=b7756a42321c6f53a04909179f1402b6.dir`).
   - DVC remote mặc định: `itf-storage` → `ssh://ITF-Server/mnt/data/user_data/lampt/FL/data/dvc-storage/federated-learning`.
   - Lưu ý: remote path là **DVC cache/hash storage**, không phải folder dataset mà training code đọc trực tiếp. Sau `dvc pull`, dataset được materialize lại ở `data/ppe`, và các script vẫn dùng `--root-dir data/ppe`.
-  - `requirements.txt` thêm dependency runtime + `dvc[ssh]` để máy RTX3060/Colab có thể cài nhanh.
+  - `requirements.txt` thêm dependency runtime + `dvc[ssh]` để client có thể cài nhanh.
 
 #### Còn lại
 - [x] `src/fl/detection_clientapp.py` + `detection_serverapp.py` — modern Flower API, load shard theo `node_config(manifest-path/root-dir/data-root, client-id/partition-id)`. **Cho Phase B (deployment).**
 - [x] `scripts/export_detection_subset.py` — đóng gói từng shard cho client.
 - [x] Thêm deps vào `pyproject.toml`: `torchmetrics[detection]`, `pycocotools`.
-- [x] DVC track + remote cho `data/ppe` để sync dataset lên RTX3060/ITF-Server mà không commit ảnh vào Git.
+- [x] DVC track + remote cho `data/ppe` để sync dataset qua ITF-Server mà không commit ảnh vào Git.
 - [x] **Real sim RTX3060** (`--device cuda`, `pretrained=True`, ~300 ảnh/site, vài round) → **journal EXP-011** + registry (cột mAP).
 
 #### Phase B (sau EXP-011)
-- Tailscale up trên 4 máy; `[tool.flwr.federations.local-sim|deploy]` trong `pyproject.toml`; SuperLink trên Mac; export 3 shard; notebook supernode Colab; `flwr run . deploy` → **EXP-012**.
+- Tailscale userspace/proxychains trên Mac + 2 Colab; `[tool.flwr.federations.local-sim|deploy]` trong `pyproject.toml`; SuperLink trên Mac; export shard `site-b/site-c`; notebook/shell SuperNode Colab; `flwr run . deploy --run-config 'num-clients=2 ...'` → **EXP-012-smoke/EXP-012-rerun đã pass**.
 
 #### Cách resume nhanh
 ```bash
 venv/bin/python -m pytest -q          # phải 94 passed
 cat .claude/plans/2026-06-25_detection-pivot-plan.md   # plan đầy đủ (đã chuyển vào repo)
-#### Trên máy mới/RTX3060 sau khi clone/pull code:
+#### Trên máy mới có quyền đọc DVC remote sau khi clone/pull code:
 dvc pull                              # materialize data/ppe từ remote itf-storage
-#### Lệnh chạy thật (trên RTX3060):
+#### Lệnh tái lập EXP-011 GPU simulation nếu có GPU phù hợp:
 venv/bin/python scripts/generate_detection_manifest.py --output configs/datasets/ppe_detection_exp011_manifest.csv --per-site 300 --val-fraction 0.2
 venv/bin/python scripts/run_detection_sim.py --mode all --manifest configs/datasets/ppe_detection_exp011_manifest.csv --root-dir data/ppe --output-dir outputs/EXP-011 --exp-id EXP-011 --device cuda
 ```
-Việc còn lại chính: **Phase B deployment thật** sau EXP-011. Dữ liệu thật: `data/ppe/` (8099 ảnh VOC, **13GB**, gitignored — KHÔNG commit ảnh).
+Việc còn lại chính sau scope update 2026-07-01: post-FL inference image/video, per-client deployment artifacts/server log, và robustness cho 2-Colab deployment. Dữ liệu thật: `data/ppe/` (8099 ảnh VOC, **13GB**, gitignored — KHÔNG commit ảnh).
 
 #### Lưu ý
 - `data/ppe/voc_labels/*.xml` (VOC) và `data/ppe/labels/*.txt` (YOLO) đều có; dùng VOC.
@@ -1139,10 +1139,10 @@ Per-class AP của mode `federated` sau 5 round:
 - [x] Sync/commit-ready `configs/datasets/ppe_detection_exp011_manifest.csv` để tái lập split EXP-011.
 - [x] Phân tích per-class AP sâu hơn để biết lớp nào kéo mAP xuống, đặc biệt `ear-mufs`, `face-guard`, `safety-suit`.
 - [ ] Chạy thêm một ablation nhỏ nếu cần: giảm round hoặc tăng round nhẹ để xác định trade-off mAP/communication.
-- [ ] Chuẩn bị EXP-012 deployment thật qua Tailscale: Mac SuperLink, Ubuntu RTX3060 + 2 Colab SuperNode, distributed evaluation.
+- [x] Chuẩn bị/chạy EXP-012 deployment thật qua Tailscale userspace: Mac SuperLink + 2 Colab SuperNode, distributed evaluation. Ubuntu RTX3060/site-a không còn là target deployment.
 
 <a id="exp-012-smoke-colab2"></a>
-### EXP-012-smoke — PPE Detection Real Deployment Smoke: Mac SuperLink + 2 Colab SuperNodes
+### EXP-012-smoke — PPE Detection Real Deployment: Mac SuperLink + 2 Colab SuperNodes
 - **Mã Thử Nghiệm:** EXP-012-smoke-colab2
 - **Ngày Thực Hiện:** 2026-06-29
 - **Trạng Thái:** Thành công sau rerun
@@ -1153,7 +1153,7 @@ Per-class AP của mode `federated` sau 5 round:
 ---
 
 #### 1. Mục Tiêu (Objective)
-- Kiểm tra deployment thật qua Flower Deployment Runtime trước khi quay lại topology 3-site đầy đủ.
+- Kiểm tra deployment thật qua Flower Deployment Runtime với topology khả thi hiện tại: Mac SuperLink + 2 Colab SuperNodes.
 - Xác nhận Mac local có thể làm SuperLink, còn Colab có thể làm SuperNode qua Tailscale userspace + SOCKS proxy.
 - Chạy smoke FedAvg 1 round với 2 site (`site-b`, `site-c`) để kiểm tra luồng gửi model head, train local, trả update và chuẩn bị evaluate.
 
@@ -1240,7 +1240,7 @@ Per-class AP của mode `federated` sau 5 round:
 - **Artifacts verified on disk:**
   - `deployment_summary.json` written with status/config/metrics/communication cost.
   - `final_head.npz` written (~56 MB) with 14 named detection-head arrays matching `detection_trainable_parameter_names(model)`.
-- **Scope note:** this is still a 2-Colab smoke run, not the full 3-site target with Ubuntu RTX3060.
+- **Scope note:** this 2-Colab run is now the active deployment target; Ubuntu RTX3060/site-a is retired from deployment.
 
 #### 3.2. Post-FL final-head site evaluation verified
 - **Inputs:** `outputs/EXP-012-rerun/final_head.npz` copied to each Colab site and evaluated with `scripts/evaluate_final_detection_head.py`.
@@ -1310,7 +1310,7 @@ flwr log 6660954678908856684 deploy --show
 
 #### 6. Quan Sát & Rủi Ro (Observations & Risks)
 - Mốc networking quan trọng đã qua: Colab có thể nối tới Mac SuperLink qua Tailscale userspace và proxychains.
-- Đây chưa phải EXP-012 chính thức 3-site vì thiếu Ubuntu RTX3060; nên xem là smoke deployment thành công để giảm rủi ro trước.
+- Đây là deployment thật theo topology khả thi hiện tại (Mac + 2 Colab). Topology 3-site với Ubuntu RTX3060 bị loại khỏi target vì không thể chạy/join Tailscale trong điều kiện hiện tại.
 - Metric thấp là bình thường cho smoke 1 round, 2 site, qua deployment thật; mục tiêu chính là xác nhận vận hành cross-machine và aggregation.
 - Upload/download head detection lớn (~55.5 MB) qua Tailscale userspace + SOCKS chạy được nhưng tốn thời gian; 1 round mất khoảng 7.6 phút.
 - Flower deployment app hiện chủ yếu dựa vào logstream; cần cân nhắc bổ sung artifact JSON cho deployment run để journal dễ tổng hợp như `run_detection_sim.py`.
@@ -1322,4 +1322,53 @@ flwr log 6660954678908856684 deploy --show
 - [x] Rerun `outputs/EXP-012-rerun` với `device="cuda"` và xác nhận deployment artifacts thật: `deployment_summary.json` + `final_head.npz`.
 - [x] Chạy post-FL final-head eval trên `site-b` và `site-c`; per-site JSON metrics reproduce đúng weighted aggregate của server.
 - [ ] Nếu upload head qua proxy quá chậm, cân nhắc smoke nhỏ hơn: `pretrained=false`, subset ít ảnh hơn, hoặc giảm số tham số aggregate cho deployment debug.
-- [ ] Khi có máy client có quyền cài Tailscale, quay lại EXP-012 chính thức 3-site: Ubuntu RTX3060 + 2 Colab.
+- [x] Loại EXP-012 chính thức 3-site khỏi target hiện tại; tiếp tục từ baseline 2-Colab đã chạy thành công.
+
+## 2026-07-01
+
+<a id="deployment-scope-update-2026-07-01"></a>
+### Scope Update — Drop Ubuntu RTX3060/site-a from active deployment target
+
+- **Quyết định:** không tiếp tục chờ Ubuntu RTX3060/site-a cho deployment thật. Target active đổi thành **Mac SuperLink + 2 Colab SuperNodes (`site-b`, `site-c`)**.
+- **Lý do:** Ubuntu RTX3060 không thể chạy/join Tailscale trong điều kiện hiện tại, nên giữ nó làm blocker sẽ làm sai trọng tâm "complete system first".
+- **Ảnh hưởng:** EXP-012-smoke/EXP-012-rerun được xem là deployment thật hợp lệ cho phần cứng hiện có: 1 round, train/evaluate distributed, `deployment_summary.json`, `final_head.npz`, post-FL eval per-site và weighted aggregate đã verify.
+- **Không đổi:** EXP-011 vẫn là historical GPU simulation baseline 3 simulated sites; các metric `site-a` trong EXP-011 giữ nguyên để phân tích non-IID simulation.
+- **Next:** tập trung vào post-FL inference image/video tại site, per-client deployment metric artifact/server log, và robustness cho Colab straggler/dropout thay vì mở rộng lại 3-site.
+
+<a id="post-fl-inference-handoff-2026-07-01"></a>
+### WIP — Post-FL Site-Side Image Inference Handoff
+
+- **Mục tiêu:** biến `final_head.npz` từ artifact đánh giá thành artifact có thể dùng để chạy detector trên ảnh local không nhãn tại site.
+- **Đã thêm:** `scripts/run_detection_inference.py` và `src/evaluation/detection_inference.py`.
+- **Luồng:** site load `outputs/<EXP-ID>/final_head.npz` → build detector cùng `num_classes` → load detection head theo tên parameter → chạy inference trên `--image` hoặc `--input-dir` → ghi một JSON detection report mỗi ảnh, box ở tọa độ ảnh gốc; tùy chọn `--save-images` để ghi ảnh annotate.
+- **Lệnh mẫu:**
+  ```bash
+  venv/bin/python scripts/run_detection_inference.py \
+    --head-path outputs/EXP-012-rerun/final_head.npz \
+    --input-dir <site-local-images> \
+    --output-dir outputs/EXP-012-rerun/inference_site_b \
+    --device auto \
+    --score-threshold 0.5 \
+    --save-images
+  ```
+- **Artifact rule:** `outputs/*/inference_*` là generated outputs, không commit vào Git.
+- **Next:** video inference, server/client log artifacts, và robustness cho Colab dropout/straggler.
+
+<a id="deployment-robustness-min-nodes-2026-07-01"></a>
+### WIP — Deployment Robustness: Configurable Minimum Node Counts
+
+- **Mục tiêu:** chuẩn bị cho smoke test Colab straggler/dropout mà không làm thay đổi baseline strict 2-client.
+- **Đã thêm:** `DetectionConfig` hỗ trợ `min_train_nodes`, `min_evaluate_nodes`, `min_available_nodes`; mặc định unset → effective value = `num_clients`.
+- **ServerApp:** FedAvg nhận effective min-node thresholds thay vì hardcode `num_clients`.
+- **Config:** Flower run-config dùng key dạng dashed:
+  `min-train-nodes`, `min-evaluate-nodes`, `min-available-nodes`.
+  Env optional tương ứng:
+  `FL_MIN_TRAIN_NODES`, `FL_MIN_EVALUATE_NODES`, `FL_MIN_AVAILABLE_NODES`.
+- **Artifact:** `deployment_summary.json` ghi effective `min_train_nodes`, `min_evaluate_nodes`, `min_available_nodes`.
+- **Nguyên tắc báo cáo:** run relax threshold, ví dụ 1-of-2 Colab, là **robustness smoke**, không so sánh mAP trực tiếp với baseline strict 2-client.
+- **Lệnh smoke dự kiến:**
+  ```bash
+  venv/bin/flwr run . deploy --stream \
+    --run-config 'num-clients=2 min-train-nodes=1 min-evaluate-nodes=1 min-available-nodes=1'
+  ```
+- **Next:** chạy một dropout smoke thật, cố tình dừng/ngắt một Colab, rồi journal status/artifact rõ ràng.

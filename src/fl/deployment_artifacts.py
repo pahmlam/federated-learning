@@ -163,6 +163,11 @@ def build_deployment_summary(
             "device": config.device,
             "pretrained": config.pretrained,
             "seed": config.seed,
+            # Effective min-node thresholds actually passed to FedAvg (strict by
+            # default: equal to num_clients unless explicitly overridden).
+            "min_train_nodes": config.effective_min_train_nodes,
+            "min_evaluate_nodes": config.effective_min_evaluate_nodes,
+            "min_available_nodes": config.effective_min_available_nodes,
         },
         "server": {
             "aggregation_strategy": AGGREGATION_STRATEGY,

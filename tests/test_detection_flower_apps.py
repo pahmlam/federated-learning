@@ -12,7 +12,8 @@ from src.fl.detection_clientapp import (
     detection_config_from_context,
     select_detection_client,
 )
-from src.fl.detection_serverapp import _round_config
+import src.fl.detection_serverapp as serverapp
+from src.fl.detection_serverapp import _build_strategy, _round_config
 from src.utils.detection_config import DetectionConfig
 
 
@@ -171,3 +172,40 @@ def test_server_round_config_contains_detection_hyperparameters():
     assert record["batch_size"] == 1
     assert record["lr"] == 0.123
     assert record["score_threshold"] == config.score_threshold
+
+
+def test_build_strategy_defaults_to_strict_num_clients(monkeypatch):
+    captured = {}
+
+    def _fake_fedavg(**kwargs):
+        captured.update(kwargs)
+        return "STRATEGY"
+
+    monkeypatch.setattr(serverapp, "FedAvg", _fake_fedavg)
+    strategy = _build_strategy(DetectionConfig(num_clients=2, pretrained=False))
+
+    assert strategy == "STRATEGY"
+    assert captured["min_train_nodes"] == 2
+    assert captured["min_evaluate_nodes"] == 2
+    assert captured["min_available_nodes"] == 2
+    assert captured["fraction_train"] == 1.0
+    assert captured["fraction_evaluate"] == 1.0
+
+
+def test_build_strategy_uses_explicit_min_node_overrides(monkeypatch):
+    captured = {}
+
+    monkeypatch.setattr(serverapp, "FedAvg", lambda **kwargs: captured.update(kwargs))
+    _build_strategy(
+        DetectionConfig(
+            num_clients=2,
+            min_train_nodes=1,
+            min_evaluate_nodes=1,
+            min_available_nodes=1,
+            pretrained=False,
+        )
+    )
+
+    assert captured["min_train_nodes"] == 1
+    assert captured["min_evaluate_nodes"] == 1
+    assert captured["min_available_nodes"] == 1

@@ -39,10 +39,30 @@ The system now has a site-side command for the first post-FL handoff step:
 This command is implemented, unit-tested, and verified on the two Colab sites
 against `outputs/EXP-012-rerun/final_head.npz`.
 
-The system does not yet implement the final production inference handoff:
+The system also has a site-side operational inference command for unlabeled
+local images:
 
-- distributing/exporting that final model back to sites for inference,
+- loading `final_head.npz` into a fresh detector,
+- running inference on one image or a non-recursive image directory,
+- writing one JSON detection report per image with boxes in original-image
+  coordinates,
+- optionally writing annotated preview images.
+
+This command is implemented and unit-tested. It should run on the site that owns
+the images; the server still holds no raw data.
+
+The system does not yet implement these deployment hardening pieces:
+
 - per-client deployment metric files and a server log artifact.
+
+ServerApp min-node thresholds are configurable for dropout robustness smoke
+runs:
+
+- strict default: `min_train_nodes = min_evaluate_nodes = min_available_nodes =
+  num_clients`,
+- optional relaxed run-config/env overrides can allow 1-of-2 Colab nodes to
+  proceed,
+- relaxed runs are robustness checks, not comparable model-quality baselines.
 
 ## 2. Main Data Flow
 
@@ -274,9 +294,11 @@ Target topology:
 | Role | Machine | Flower role | Data |
 | --- | --- | --- | --- |
 | Server | Mac local | SuperLink + ServerApp submitter | No raw data |
-| Client `site-a` | Ubuntu RTX3060 | SuperNode | Own shard |
 | Client `site-b` | Colab #1 | SuperNode | Own shard |
 | Client `site-c` | Colab #2 | SuperNode | Own shard |
+
+`site-a` / Ubuntu RTX3060 is no longer part of the active deployment target
+because it cannot be run/joined under the current access constraints.
 
 Current deployment smoke that has passed:
 
@@ -287,8 +309,8 @@ Current deployment smoke that has passed:
 - train and evaluate completed
 - deployment artifacts verified in `outputs/EXP-012-rerun/`
 
-Full 3-site deployment is still pending because Ubuntu RTX3060 was not included
-in the successful deployment smoke.
+The active deployment target is the 2-Colab topology above. The previous
+3-site Ubuntu + 2 Colab topology has been dropped as a blocker.
 
 ### 7.1 ServerApp Flow
 
@@ -315,9 +337,9 @@ Server configuration:
 
 - `fraction_train=1.0`
 - `fraction_evaluate=1.0`
-- `min_train_nodes=config.num_clients`
-- `min_evaluate_nodes=config.num_clients`
-- `min_available_nodes=config.num_clients`
+- `min_train_nodes=config.effective_min_train_nodes`
+- `min_evaluate_nodes=config.effective_min_evaluate_nodes`
+- `min_available_nodes=config.effective_min_available_nodes`
 - `weighted_by_key="num-examples"`
 
 The server does not load a validation dataset. Evaluation is distributed to
@@ -468,22 +490,28 @@ Implemented:
 - Site-side final-head evaluation: `scripts/evaluate_final_detection_head.py`
   loads `final_head.npz`, evaluates on a local site validation shard, and writes a
   JSON metrics report.
+- Site-side operational inference: `scripts/run_detection_inference.py` loads
+  `final_head.npz`, runs on unlabeled local images, and writes per-image
+  detection JSON plus optional annotated previews.
+- Configurable ServerApp min-node thresholds:
+  `min_train_nodes`, `min_evaluate_nodes`, `min_available_nodes`, strict by
+  default and recorded in `deployment_summary.json`.
 
 Partially implemented:
 
-- Cross-machine deployment: smoke passed with 2 Colab clients, but full target
-  topology with Ubuntu RTX3060 is not complete.
-- Deployment robustness: Colab straggler behavior is observed, but dropout,
-  checkpoint, and resume behavior are not fully tested.
+- Deployment robustness: strict 2-Colab target passed; min-node knobs now allow
+  1-of-2 dropout smoke runs, but actual dropout, checkpoint, and resume behavior
+  are not fully tested.
 - Post-FL handoff: site-side final-head evaluation is verified for validation
-  metrics on the two Colab sites; operational image/video inference is still
-  missing.
+  metrics on the two Colab sites; operational image inference is implemented
+  and unit-tested, but video inference is still missing.
 
 Missing:
 
 - Per-client deployment metric files and a server log artifact.
-- Export/push final model to clients for inference.
-- Site-side image/video inference command for operational use.
+- Export/push final model/head to clients as a formal handoff step.
+- Site-side video inference command for operational use.
+- Actual Colab dropout smoke run with relaxed min-node thresholds.
 - Task abstraction layer for plugging in a new workload without touching the
   detection-specific core.
 - Additional aggregation strategies beyond FedAvg.
@@ -502,7 +530,10 @@ Flower deployment run completes
   -> each site can run local eval command              [done, unit-tested]
   -> verify server artifact writing in real deploy      [done: EXP-012-rerun]
   -> run site eval against real final_head.npz          [done: site-b/site-c]
-  -> run operational image/video inference             [next]
+  -> run operational image inference                    [done, unit-tested]
+  -> configure relaxed min nodes for dropout smoke      [done, unit-tested]
+  -> run actual Colab dropout smoke                     [next]
+  -> run operational video inference                    [next]
 ```
 
 Remaining artifact/handoff work, in suggested order:
@@ -513,11 +544,11 @@ outputs/<EXP-ID>/
   final_head.npz            # done (when Flower exposes final arrays)
   final_head_site_b_metrics.json  # done for EXP-012-rerun
   final_head_site_c_metrics.json  # done for EXP-012-rerun
-  final_head_site_a_metrics.json  # pending until site-a joins
   server_log.txt            # next
-  client_site_a_metrics.json  # next: per-client deployment metric files
-  client_site_b_metrics.json
+  client_site_b_metrics.json  # next: per-client deployment metric files
   client_site_c_metrics.json
+  inference_site_b/*.json      # generated, do not commit
+  inference_site_c/*.json      # generated, do not commit
 ```
 
 Site-side final-head evaluation command:
@@ -532,6 +563,18 @@ venv/bin/python scripts/evaluate_final_detection_head.py \
   --device auto
 ```
 
-Next: add an operational image/video inference command that loads
-`final_head.npz` at a site and writes detections for local media. For the full
-3-site run, repeat the final-head eval on `site-a` after Ubuntu RTX3060 joins.
+Site-side operational image inference command:
+
+```bash
+venv/bin/python scripts/run_detection_inference.py \
+  --head-path outputs/<EXP-ID>/final_head.npz \
+  --input-dir <site-local-images> \
+  --output-dir outputs/<EXP-ID>/inference_<site-id> \
+  --device auto \
+  --score-threshold 0.5 \
+  --save-images
+```
+
+Next: add operational video inference and improve deployment artifact capture.
+Before model-quality comparisons, run one explicit dropout smoke with relaxed
+min-node thresholds and journal it separately from strict baseline metrics.

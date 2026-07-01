@@ -36,14 +36,7 @@ def main(grid: Grid, context: Context) -> None:
     head_param_names = detection_trainable_parameter_names(model)
     update_size_bytes = parameter_bytes(head_arrays)
 
-    strategy = FedAvg(
-        fraction_train=1.0,
-        fraction_evaluate=1.0,
-        min_train_nodes=config.num_clients,
-        min_evaluate_nodes=config.num_clients,
-        min_available_nodes=config.num_clients,
-        weighted_by_key="num-examples",
-    )
+    strategy = _build_strategy(config)
 
     started_at = datetime.now(timezone.utc).isoformat()
     start_perf = time.time()
@@ -74,6 +67,24 @@ def main(grid: Grid, context: Context) -> None:
             exception_raised=exception_raised,
             head_param_names=head_param_names,
         )
+
+
+def _build_strategy(config: DetectionConfig) -> FedAvg:
+    """Construct the FedAvg strategy with resolved min-node thresholds.
+
+    ``fraction_train``/``fraction_evaluate`` stay at 1.0 (use all sampled nodes);
+    the min-node values are strict (equal to ``num_clients``) unless the config
+    explicitly overrides them for a straggler/dropout robustness smoke run.
+    """
+
+    return FedAvg(
+        fraction_train=1.0,
+        fraction_evaluate=1.0,
+        min_train_nodes=config.effective_min_train_nodes,
+        min_evaluate_nodes=config.effective_min_evaluate_nodes,
+        min_available_nodes=config.effective_min_available_nodes,
+        weighted_by_key="num-examples",
+    )
 
 
 def _round_config(config: DetectionConfig) -> ConfigRecord:
