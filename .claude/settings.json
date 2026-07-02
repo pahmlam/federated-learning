@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(venv/bin/python -m pytest:*)",
+      "Bash(venv/bin/python scripts/run_detection_sim.py:*)",
+      "Bash(venv/bin/python scripts/capture_flower_logs.py:*)",
+      "Bash(venv/bin/python scripts/run_detection_inference.py:*)",
+      "Bash(venv/bin/flwr run . local-sim:*)",
+      "Bash(venv/bin/flwr list deploy)",
+      "Bash(venv/bin/flwr log:*)",
+      "Bash(rg:*)",
+      "Bash(jq:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(find:*)",
+      "Bash(sed:*)",
+      "Bash(ls:*)",
+      "Bash(wc:*)"
+    ],
+    "defaultMode": "auto"
+  }
+}

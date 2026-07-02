@@ -1,189 +1,81 @@
-This file provides guidance to Claude sessions when working with this repository.
+This file gives Claude Code the minimum repository orientation needed for coding work.
+Detailed status, roadmap, and experiment history live in the docs listed below.
 
-## Collaboration Role
+## Role
 
 Claude Code is the implementation worker for this repository.
 
 - Own code and test changes requested by the user or by a Codex handoff prompt.
-- Keep implementation changes scoped to the requested feature/fix.
+- Keep changes scoped to the requested feature/fix.
 - Run relevant tests and report exactly what passed or failed.
-- Do **not** modify Markdown/documentation files by default.
-- If behavior changes require docs updates, mention the required updates in the final summary instead of editing docs.
+- Do not modify Markdown/documentation files by default.
+- If behavior changes require docs updates, mention the required updates in the final summary.
 - Only edit docs (`*.md`, journal, planning files, README files) when the user explicitly asks Claude Code to do documentation work.
 
-Codex is the reviewer/planner/documentation partner:
+Codex is the reviewer, planner, experiment interpreter, and documentation owner.
 
-- Codex reviews Claude Code's implementation work.
-- Codex owns `PLAN.md`, `FLOW.md`, README/doc updates, journal entries, and experiment interpretation.
-- Codex will update documentation after code behavior is reviewed.
+- Codex reviews implementation work.
+- Codex owns `README.md`, `FLOW.md`, `docs/md/PLAN.md`, `docs/journal/README.md`, and experiment interpretation.
+- Codex applies documentation updates after code behavior is reviewed.
 
-## Repository Overview
+## Read First
 
-This is a Federated Learning research/prototype repository for camera/vision tasks on edge deployments. The target use cases are:
+- `README.md`: current repository overview, setup, commands, and latest usable state.
+- `FLOW.md`: implemented system flow and architecture.
+- `docs/md/PLAN.md`: roadmap and next priorities.
+- `docs/journal/README.md`: single experiment journal.
+- `docs/engineering`: run errors and fixes.
+- `.env.example`: supported environment variables.
 
-- **PPE (current focus)**: **object detection** of 8 core PPE classes (`helmet, safety-vest, safety-suit, face-mask-medical, gloves, glasses, ear-mufs, face-guard`). This is the active track.
-- **Face**: recognition, verification, or embedding adaptation (still pending, not started).
+Use these docs as the source of truth instead of duplicating detailed progress in this file.
 
-### Current Project Status (read before working on PPE)
-
-- **PPE is now an object-detection task** (Faster R-CNN MobileNetV3-Large-FPN, freeze backbone+FPN, train detection head only). Do **not** treat PPE as image-level classification.
-- **EXP-001 → EXP-010 are an archived stage-1 classification baseline** (binary `safe/unsafe` over a proxy `has_core_ppe` image-level label). That track hit a ~0.60 macro-F1 ceiling that EXP-009 attributed mostly to the proxy label. Keep those journals as historical reference; new work is detection.
-- **The project has moved from single-machine simulation to real federated deployment** across heterogeneous machines (see "Deployment Topology" below).
-
-This is a **research workspace**, not a production codebase. Build a clean experimental foundation before proposing new FL methods.
-
-Core technical direction:
+## Repository Shape
 
 ```text
-pretrained backbone
-    -> freeze or nearly freeze backbone
-    -> train only embedding/head/adapter/LoRA
-    -> aggregate lightweight updates when possible
+configs/              Dataset and experiment config files
+data/                 Local datasets, gitignored/DVC-managed
+demo/                 Flower quickstart reference; do not modify by default
+docs/                 Planning, research notes, journal, engineering notes
+notebooks/            Colab SuperNode notebooks for site-b/site-c
+outputs/              Generated metrics, logs, shards, checkpoints; do not commit
+scripts/              CLI helpers for manifests, simulation, deployment logs, inference
+src/data/             Dataset loading, manifests, client bundles
+src/models/           Model builders and trainable-parameter helpers
+src/training/         Centralized/local training and evaluation loops
+src/fl/               Flower apps, strategies, task seam, EdgeProfile
+src/evaluation/       Metrics, parameter/update-size helpers
+src/utils/            Config, env, IO, resources, seeding helpers
+tests/                Unit and smoke tests
 ```
 
-Do **not** assume the project is trying to train a full vision model from scratch.
+## Coding Context
 
-## Key Components
+- This is a Federated Learning research/prototype repo for camera/vision edge deployments.
+- Active workload: PPE **object detection**, not image classification.
+- Active detector: Faster R-CNN MobileNetV3-Large-FPN with frozen backbone + FPN.
+- Trainable/aggregated part: detection head only.
+- FL framework: Flower modern `ClientApp`/`ServerApp`.
+- Main task seam: `src/fl/task.py`, implemented by `DetectionTask` and `EmbeddingClassificationTask`.
+- A client means one site/edge box/NVR/local server, not one camera.
+- Server should not hold raw client data; deployment evaluation is distributed and weighted by client examples.
+- Edge device emulation lives in `src/fl/edge_profile.py` and should stay app/task-level unless a plan says otherwise.
 
-### Research And Planning Docs
+## Implementation Guardrails
 
-- `docs/md/kehoachthuviec.md`: internship/work plan and milestones.
-- `docs/md/PLAN.md`: phase-based roadmap (Phase S strict baseline → M personalization → C communication efficiency → R robustness → E evaluation artifact → G multi-task runtime → H hardening → F final report) plus the system completeness checklist. No longer a date-bound daily checklist; direction is informed by `docs/md/deep-research-report.md`.
-- `docs/md/REPORT.md`: research report about FL for camera/vision use cases.
-- `docs/Federated Learning.md`: FL background notes.
-- `docs/journal/README.md`: single-file experiment journal grouped by date; append all EXP/WIP entries here
-- `docs/engineering`: single-file report all error when run and how to fix, append all here
-
-Search these docs first before answering project-specific research questions.
-
-Keep `demo/` as a learning/reference app unless the user explicitly asks to modify it.
-
-## Critical Patterns
-
-### FL Framework vs Research Method
-
-Flower is the baseline FL framework for server/client orchestration, simulation, and strategy experiments.
-
-Do not start by building a new FL framework. First build:
-
-1. `centralized` baseline;
-2. `local-only` baseline;
-3. `federated` baseline with FedAvg;
-4. non-IID client partitioning;
-5. per-client/site evaluation.
-
-**These baselines are already done** (classification track EXP-001→010). The current stage builds the **PPE detection** equivalents of all three modes, then moves to **real Flower deployment** (not just simulation). Keep using the modern Flower `ClientApp`/`ServerApp` API (see `src/fl/client_app.py`, `src/fl/server_app.py`) so the same app runs in both simulation and deployment.
-
-### Parameter-Efficient Training Is Mandatory By Default
-
-All first-stage experiments should use a pretrained backbone and train only lightweight parts:
-
-- embedding layer;
-- classifier/task head;
-- adapter;
-- LoRA module;
-- similarly small trainable component.
-
-Avoid full-model fine-tuning or full training from scratch unless the user explicitly changes direction.
-
-**For PPE detection specifically:** freeze the detector **backbone + FPN**, train only the **RPN head + ROI box predictor**. FedAvg aggregates **only the detection head** parameters. Note: the classification track's precompute-embedding OOM trick does **not** apply to detection (detection needs spatial feature maps, not a single pooled vector) — handle memory via small input size / small batch on the GPU clients instead.
-
-### Client Definition
-
-A client = one site / edge box / NVR / local server — never "one camera = one FL client" (cameras may only run inference; training happens on edge/server hardware).
-
-### Deployment Topology (real, not simulation)
-
-The PPE detection track runs as **real cross-machine federated learning** over Tailscale userspace networking:
-
-| Role | Machine | Notes |
-| :--- | :--- | :--- |
-| **Server / SuperLink** (aggregator) | Mac local (M2, CPU) | Light — only aggregates weights. Holds **no data**. |
-| **Client #1 — `site-b`** | Google Colab account #1 | SuperNode (GPU). |
-| **Client #2 — `site-c`** | Google Colab account #2 | SuperNode (GPU). |
-
-`site-a` / Ubuntu RTX3060 is **not part of the active deployment target** anymore because it cannot be run/joined under the current access constraints. Keep old `site-a` results only as historical simulation context.
-
-Key consequences:
-
-- **Data stays local per client** (each holds only its own shard). The server never sees raw data → use **distributed evaluation**; the global metric is the weighted aggregate of per-client validation, not a server-side pooled eval.
-- Networking is **Tailscale userspace + proxychains** for Colab clients (Mac gets a stable tailnet IP; Colab dials the SuperLink through SOCKS). Run `--insecure` only because the tailnet is private.
-- Colab clients are **stragglers by nature** (session limits, disconnects) — keep rounds short and make FedAvg tolerant of missing nodes.
-- Validate in **simulation first** (`flwr run . local-sim` or `scripts/run_detection_sim.py`), then deploy (`flwr run . deploy`).
-
-### Required Baselines And Metrics
-
-Every serious experiment must compare `centralized` (if possible), `local-only`, and `federated` modes.
-Experiment journal updates are documentation work and are Codex-owned by default. Claude Code should not edit the journal unless explicitly asked. When Claude Code runs an experiment, report the metrics/artifact paths in the final summary so Codex can append `docs/journal/README.md`.
-Required metrics: global/per-client loss and metrics (Acc/F1/mAP), training time, round count, update size, and communication cost.
-
-For **PPE detection**, the primary metric is **mAP@0.5 and mAP@0.5:0.95 with per-class AP** (via `torchmetrics.detection.MeanAveragePrecision`), reported **per-client** plus a weighted global aggregate. The `centralized` pooled baseline is a reference only (it requires gathering all data on one machine, which is outside the FL privacy model).
-
-### Data And Privacy
-
-Face and camera data are sensitive. PPE data can expose people, factory layout, and operational processes.
-
-Do not commit:
-
-- raw camera images/videos;
-- face images;
-- private datasets;
-- model checkpoints;
-- large logs or generated outputs.
-
-FL does not remove the need for reliable labels. Expect manual labeling, human-in-the-loop feedback, pseudo-label review, or active learning in real workflows.
-
-## Expected Implementation Shape
-
-When implementation begins, prefer this module split:
-
-- `src/data/`: dataset loading, preprocessing, and client partitioning.
-- `src/models/`: pretrained backbone wrappers and trainable head/embedding/adapter/LoRA modules.
-- `src/training/`: centralized and local-only loops for lightweight trainable parts.
-- `src/fl/`: Flower ClientApp, ServerApp, strategy, aggregation, and client selection.
-- `src/evaluation/`: metrics, per-client reports, communication cost, update size.
-- `src/utils/`: config, logging, seeding, and path helpers.
-
-Keep modules small and testable. Keep configs separate from code. Avoid hardcoded absolute paths.
-
-## Workflow Best Practices
-
-For research/documentation tasks:
-
-- Read relevant docs first.
-- Preserve neutral research tone.
-- Avoid claiming a method/framework is new before baselines and bottlenecks are demonstrated.
-- Distinguish clearly between FL framework, experiment repo, and research method.
-- Do not perform documentation edits unless explicitly requested. Report documentation changes needed in your final summary.
-
-For implementation tasks:
-
-- Start from a minimal runnable pipeline.
-- Implement baselines before method improvements.
-- Add smoke tests early.
-- Verify at least one quick run for the mode being changed.
+- Do not train full vision models from scratch unless the user explicitly changes direction.
+- Prefer pretrained backbone + lightweight head/adapter/LoRA style updates.
+- Do not build a new FL framework; extend the Flower-based system.
+- Keep modules small, testable, and aligned with the existing directory boundaries.
+- Avoid hardcoded absolute paths.
 - Do not modify docs, unrelated files, or `demo/` unless asked.
-- Use `rg` for search and `apply_patch` for edits.
+- Do not commit raw images/videos, private datasets, checkpoints, large logs, or generated outputs.
+- Use `rg` for search and `apply_patch` for manual edits.
 
-For planning tasks:
-
-- Keep plans decision-complete.
-- Tie work back to `docs/md/PLAN.md` and `docs/md/kehoachthuviec.md`.
-- Prefer practical next steps over broad research speculation.
-
-## Current Commands
-
-Run the test suite:
+## Common Commands
 
 ```bash
 venv/bin/python -m pytest
+venv/bin/python scripts/run_detection_sim.py --mode all --device cuda
+venv/bin/flwr run . local-sim --stream
+venv/bin/flwr run . deploy --stream
 ```
-
-Detection track (current) — once built, runs via the modern Flower API:
-
-```bash
-flwr run . local-sim   # validate in simulation
-flwr run . deploy       # real 2-Colab deployment (SuperLink on Mac, SuperNodes over Tailscale userspace)
-```
-
-Flower quickstart reference (do not modify unless asked): `cd demo && flwr run .`

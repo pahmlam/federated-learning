@@ -1,9 +1,8 @@
 venv/
 .env
 .env.local
+.DS_Store
 /md/
-.claude/
-.agent/
 __pycache__/
 .pytest_cache/
 *.py[cod]
@@ -35,3 +34,12 @@ outputs/logs/*
 
 ppe/
 data/dvc-storage/*
+
+# Local AI assistant runtime/cache files.
+# Keep root AGENTS.md and CLAUDE.md tracked as the repo orientation layer.
+.claude/.DS_Store
+.claude/settings.local.json
+.claude/tasks/
+.claude/cache/
+.agents/
+.codex/
