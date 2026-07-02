@@ -48,7 +48,7 @@ Do **not** assume the project is trying to train a full vision model from scratc
 ### Research And Planning Docs
 
 - `docs/md/kehoachthuviec.md`: internship/work plan and milestones.
-- `docs/md/PLAN.md`: daily checklist from 10/06/2026 to 31/08/2026.
+- `docs/md/PLAN.md`: phase-based roadmap (Phase S strict baseline → M personalization → C communication efficiency → R robustness → E evaluation artifact → G multi-task runtime → H hardening → F final report) plus the system completeness checklist. No longer a date-bound daily checklist; direction is informed by `docs/md/deep-research-report.md`.
 - `docs/md/REPORT.md`: research report about FL for camera/vision use cases.
 - `docs/Federated Learning.md`: FL background notes.
 - `docs/journal/README.md`: single-file experiment journal grouped by date; append all EXP/WIP entries here

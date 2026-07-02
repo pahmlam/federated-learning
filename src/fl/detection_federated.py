@@ -10,12 +10,22 @@ reuse the exact same train/eval functions and averaging math.
 from __future__ import annotations
 
 import time
+from dataclasses import replace
 from typing import Any
 
 import numpy as np
+from torch.utils.data import Subset
 
 from src.data.detection_data import DetectionClientData, DetectionDatasetBundle
+from src.data.detection_dataset import PPEDetectionDataset
 from src.evaluation.metrics import parameter_bytes
+from src.fl.edge_profile import (
+    EdgeProfile,
+    apply_profile_overrides,
+    edge_decision,
+    profile_metrics,
+    resolve_edge_profile,
+)
 from src.models.detection_model import (
     build_detection_model,
     get_detection_head_parameters,
@@ -59,31 +69,79 @@ def run_detection_federated(
         print(f"[federated] round {server_round}/{config.num_rounds} start", flush=True)
         client_params: list[list[np.ndarray]] = []
         weights: list[float] = []
+        train_records: list[dict[str, Any]] = []
+        train_failures: list[dict[str, Any]] = []
         for client in bundle.clients:
             print(
                 f"[federated] round {server_round}/{config.num_rounds} "
                 f"client {client.client_id} train",
                 flush=True,
             )
-            model = _build(config, bundle)
+            profile = _profile_for(config, client)
+            client_config = apply_profile_overrides(config, profile)
+            effective_client = _client_with_profile(client, profile, bundle)
+            decision = edge_decision(
+                profile,
+                seed=client_config.seed,
+                client_id=client.client_id,
+                round_number=server_round,
+                stage="train",
+            )
+            if not decision.should_run:
+                train_failures.append(
+                    _edge_failure_record(client, profile, decision, stage="train")
+                )
+                print(
+                    f"[federated] round {server_round}/{config.num_rounds} "
+                    f"client {client.client_id} skipped: {decision.reason}",
+                    flush=True,
+                )
+                continue
+
+            model = _build(client_config, bundle)
             set_detection_head_parameters(model, global_params)
+            train_data = _train_dataset(effective_client, profile)
+            client_start = time.perf_counter()
+            if profile and profile.artificial_train_delay_sec > 0:
+                time.sleep(profile.artificial_train_delay_sec)
             train_detection_head(
                 model,
-                client.train,
-                epochs=config.local_epochs,
-                **_train_kwargs(config, device),
+                train_data,
+                epochs=client_config.local_epochs,
+                **_train_kwargs(client_config, device),
                 log_prefix=f"[federated/r{server_round}/{client.client_id}]",
             )
+            elapsed = time.perf_counter() - client_start
             client_params.append(get_detection_head_parameters(model))
-            weights.append(float(len(client.train)))
+            weights.append(float(len(train_data)))
+            train_record = {
+                "client_id": client.client_id,
+                "client_label": client.client_label,
+                "num_examples": len(train_data),
+                "effective_train_time": elapsed,
+            }
+            train_record.update(
+                profile_metrics(profile, decision, update_size_bytes=update_size)
+            )
+            train_records.append(train_record)
+        if not client_params:
+            raise RuntimeError("No detection clients completed training in this round")
         global_params = federated_average(client_params, weights)
         print(f"[federated] round {server_round}/{config.num_rounds} aggregate done", flush=True)
         round_records = _distributed_eval(
-            config, bundle, global_params, device, f"[federated/r{server_round}/eval]"
+            config,
+            bundle,
+            global_params,
+            device,
+            f"[federated/r{server_round}/eval]",
+            round_number=server_round,
+            update_size_bytes=update_size,
         )
-        history.append(
-            {"round": server_round, **_weighted_global(round_records)}
-        )
+        history_record = {"round": server_round, **_weighted_global(round_records)}
+        if _has_edge_profiles(config):
+            history_record["train_clients"] = train_records
+            history_record["train_failures"] = train_failures
+        history.append(history_record)
         round_metrics = history[-1]
         print(
             f"[federated] round {server_round}/{config.num_rounds} done: "
@@ -92,7 +150,15 @@ def run_detection_federated(
             flush=True,
         )
 
-    per_client = _distributed_eval(config, bundle, global_params, device, "[federated/final]")
+    per_client = _distributed_eval(
+        config,
+        bundle,
+        global_params,
+        device,
+        "[federated/final]",
+        round_number=config.num_rounds + 1,
+        update_size_bytes=update_size,
+    )
     print(f"[federated] done", flush=True)
     return {
         "mode": "federated",
@@ -115,21 +181,47 @@ def _distributed_eval(
     global_params: list[np.ndarray],
     device: str,
     log_prefix: str | None = None,
+    *,
+    round_number: int = 1,
+    update_size_bytes: int = 0,
 ) -> list[dict[str, Any]]:
     records = []
     for client in bundle.clients:
-        model = _build(config, bundle)
+        profile = _profile_for(config, client)
+        client_config = apply_profile_overrides(config, profile)
+        effective_client = _client_with_profile(client, profile, bundle)
+        decision = edge_decision(
+            profile,
+            seed=client_config.seed,
+            client_id=client.client_id,
+            round_number=round_number,
+            stage="evaluate",
+        )
+        if not decision.should_run:
+            records.append(
+                _edge_failure_record(client, profile, decision, stage="evaluate")
+            )
+            continue
+
+        model = _build(client_config, bundle)
         set_detection_head_parameters(model, global_params)
+        eval_start = time.perf_counter()
         metrics = evaluate_detection(
             model,
-            client.val,
-            batch_size=config.batch_size,
+            effective_client.val,
+            batch_size=client_config.batch_size,
             device=device,
-            num_workers=config.num_workers,
-            score_threshold=config.score_threshold,
+            num_workers=client_config.num_workers,
+            score_threshold=client_config.score_threshold,
             log_prefix=f"{log_prefix}/{client.client_id}" if log_prefix else None,
         )
-        records.append(_client_record(client, metrics))
+        elapsed = time.perf_counter() - eval_start
+        record = _client_record(effective_client, metrics)
+        edge_metrics = profile_metrics(profile, decision, update_size_bytes=update_size_bytes)
+        if edge_metrics:
+            edge_metrics["effective_eval_time"] = elapsed
+            record.update(edge_metrics)
+        records.append(record)
     return records
 
 
@@ -163,6 +255,64 @@ def _client_record(client: DetectionClientData, metrics: dict[str, Any]) -> dict
     record.update({key: float(metrics.get(key, -1.0)) for key in _REPORT_KEYS})
     record["map_per_class"] = metrics.get("map_per_class")
     return record
+
+
+def _profile_for(config: DetectionConfig, client: DetectionClientData) -> EdgeProfile | None:
+    return resolve_edge_profile(
+        edge_profile=config.edge_profile,
+        edge_profiles=config.edge_profiles,
+        client_label=client.client_label,
+        client_id=client.client_id,
+    )
+
+
+def _client_with_profile(
+    client: DetectionClientData,
+    profile: EdgeProfile | None,
+    bundle: DetectionDatasetBundle,
+) -> DetectionClientData:
+    if profile is None or profile.image_size is None or profile.image_size == bundle.image_size:
+        return client
+    return replace(
+        client,
+        train=PPEDetectionDataset(client.train.records, image_size=profile.image_size),
+        val=PPEDetectionDataset(client.val.records, image_size=profile.image_size),
+    )
+
+
+def _train_dataset(client: DetectionClientData, profile: EdgeProfile | None):
+    if profile is None or profile.max_train_samples is None:
+        return client.train
+    limit = min(profile.max_train_samples, len(client.train))
+    if limit == len(client.train):
+        return client.train
+    return Subset(client.train, range(limit))
+
+
+def _edge_failure_record(
+    client: DetectionClientData,
+    profile: EdgeProfile | None,
+    decision,
+    *,
+    stage: str,
+) -> dict[str, Any]:
+    record = {
+        "client_id": client.client_id,
+        "client_label": client.client_label,
+        "num_examples": 0,
+        "stage": stage,
+        "edge_profile_enabled": 1.0 if profile else 0.0,
+        "edge_availability_decision": 1.0 if decision.available else 0.0,
+        "edge_dropout_decision": 1.0 if decision.dropped else 0.0,
+        "edge_dropout_reason_code": float(decision.reason_code),
+    }
+    for key in _REPORT_KEYS:
+        record[key] = -1.0
+    return record
+
+
+def _has_edge_profiles(config: DetectionConfig) -> bool:
+    return bool(config.edge_profile or config.edge_profiles)
 
 
 def _weighted_global(per_client: list[dict[str, Any]]) -> dict[str, Any]:

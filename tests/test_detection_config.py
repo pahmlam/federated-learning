@@ -44,6 +44,23 @@ def test_from_run_config_accepts_client_id():
     assert config.client_id == "site-b"
 
 
+def test_from_run_config_accepts_edge_profile_strings():
+    config = DetectionConfig.from_run_config(
+        {
+            "edge-profile": "slow",
+            "edge-profiles": '{"site-b":"low-bandwidth"}',
+        }
+    )
+    assert config.edge_profile == "slow"
+    assert config.edge_profiles == '{"site-b":"low-bandwidth"}'
+
+
+def test_blank_edge_profile_strings_normalize_to_none():
+    config = DetectionConfig.from_run_config({"edge-profile": "", "edge-profiles": ""})
+    assert config.edge_profile is None
+    assert config.edge_profiles is None
+
+
 def test_normalized_rejects_too_small_image_size():
     with pytest.raises(ValueError, match="image_size must be >= 64"):
         DetectionConfig(image_size=32).normalized()

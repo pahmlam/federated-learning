@@ -167,6 +167,26 @@ def deployment_log_dir(config: DetectionConfig) -> Path:
     return Path(config.output_dir).parent / "logs" / config.exp_id
 
 
+def log_file_targets(log_dir: Path) -> dict[str, Any]:
+    """Canonical raw-log filenames under a run's ``log_dir`` (single source of truth).
+
+    Both the deployment artifact writer (via :func:`build_log_paths`) and the
+    ``scripts/capture_flower_logs.py`` capture helper resolve their log paths through
+    this one function, so a run's logs always land where its summary expects them.
+    Client log filenames come from ``DEPLOYMENT_SITE_LABELS``.
+    """
+
+    return {
+        "log_dir": log_dir,
+        "flower_run_log": log_dir / "flower_run_log.txt",
+        "server_log": log_dir / "server_log.txt",
+        "client_logs": {
+            label: log_dir / f"client_{label.replace('-', '_')}_log.txt"
+            for label in DEPLOYMENT_SITE_LABELS
+        },
+    }
+
+
 def _log_entry(path: Path) -> dict[str, str]:
     status = STATUS_PRESENT if path.is_file() else STATUS_EXPECTED
     return {"path": str(path), "status": status}
@@ -179,18 +199,17 @@ def build_log_paths(
 ) -> dict[str, Any]:
     """Describe the expected raw-log locations for this run (JSON-ready).
 
-    Client log filenames come from ``DEPLOYMENT_SITE_LABELS``; each entry is marked
+    Paths come from :func:`log_file_targets`; each entry is marked
     ``present``/``expected`` by existence check -- we never fabricate log files.
     """
 
-    log_dir = deployment_log_dir(config)
+    targets = log_file_targets(deployment_log_dir(config))
     client_logs = {
-        label: _log_entry(log_dir / f"client_{label.replace('-', '_')}_log.txt")
-        for label in DEPLOYMENT_SITE_LABELS
+        label: _log_entry(path) for label, path in targets["client_logs"].items()
     }
     return {
-        "log_dir": str(log_dir),
-        "server_log": _log_entry(log_dir / "server_log.txt"),
+        "log_dir": str(targets["log_dir"]),
+        "server_log": _log_entry(targets["server_log"]),
         "client_logs": client_logs,
         "flower_log_command": _flower_log_command(run_id),
         "note": (

@@ -35,6 +35,8 @@ Thư mục này dùng **một file duy nhất** (`docs/journal/README.md`) để
 | **EXP-012-smoke** | 2026-06-29/30 | PPE detection real deployment: Mac SuperLink + 2 Colab SuperNodes | Thành công + artifacts/post-FL eval verified | N/A | N/A | mAP 0.0170 / mAP50 0.0498 | [Chi tiết](#exp-012-smoke-colab2) |
 | **EXP-013** | 2026-07-01 | PPE detection deployment robustness smoke: relaxed min-node thresholds | Thành công | N/A | N/A | mAP 0.0514 / mAP50 0.1244 | [Chi tiết](#exp-013-dropout-smoke) |
 | **EXP-014** | 2026-07-01 | PPE detection one-site deployment with structured round logging | Thành công + log capture checked | N/A | N/A | mAP 0.0479 / mAP50 0.1220 | [Chi tiết](#exp-014-one-site-logged) |
+| **EXP-015** | 2026-07-02 | PPE detection strict 2-site deployment with clean log capture | Thành công + strict 2/2 log evidence | N/A | N/A | mAP 0.0170 / mAP50 0.0498 | [Chi tiết](#exp-015-strict-2site-logged) |
+| **WIP-EXP-015** | 2026-07-02 | Strict 2-client deployment observability hardening | Code/tests verified; deployment run pending | N/A | N/A | N/A | [Chi tiết](#wip-exp-015-observability-hardening) |
 | **WIP** | 2026-06-25 | PPE detection pivot + federated deployment + DVC sync | Đang làm | N/A | N/A | N/A | [Chi tiết](#wip-detection-pivot) |
 | **WIP-TASK** | 2026-07-01 | FL task abstraction layer (`FederatedTask`, detection + embedding classification tasks) | Minimal seam proven with 2 workloads | N/A | N/A | N/A | [Chi tiết](#wip-task-abstraction-2026-07-01) |
 
@@ -1631,3 +1633,142 @@ PATH="$PWD/venv/bin:$PATH" venv/bin/python scripts/capture_flower_logs.py \
 - [x] Prove generic driver chạy được cả detection và embedding classification.
 - [ ] Nếu báo cáo/demo cần multi-task runtime, thêm task selection hoặc entry point riêng cho embedding/face workload.
 - [ ] Khi chuyển sang method phase, giữ `DetectionTask` là workload concrete và không refactor rộng trừ khi có duplication thật.
+
+## 2026-07-02
+
+<a id="wip-exp-015-observability-hardening"></a>
+### WIP-EXP-015 — Strict 2-Client Deployment Observability Hardening
+- **Mã Thử Nghiệm:** WIP-EXP-015-observability-hardening
+- **Ngày Thực Hiện:** 2026-07-02
+- **Trạng Thái:** Code/tests verified; strict 2-client deployment run pending
+- **Loại:** Deployment observability hardening / pre-run verification, chưa phải model-quality experiment
+- **Git Commit Hash:** `[pending]`
+
+---
+
+#### 1. Mục Tiêu (Objective)
+- Chuẩn bị cho run `EXP-015` strict 2-client deployment bằng cách làm đường dẫn raw log nhất quán giữa deployment artifact và helper capture log.
+- Xác nhận artifact hiện tại đã đủ field để diễn giải một strict 2-client deployment: strictness derivable từ `min_*_nodes == num_clients`, số round, update size, communication estimate, timing, distributed evaluation, và weighted per-round metrics.
+- Không fabricate actual client IDs/counts vì Flower `Result` vẫn không expose participation chi tiết.
+
+#### 2. Thay Đổi Chính
+- Thêm `log_file_targets(log_dir)` trong `src/fl/deployment_artifacts.py` làm single source of truth cho:
+  - `flower_run_log.txt`
+  - `server_log.txt`
+  - `client_site_b_log.txt`
+  - `client_site_c_log.txt`
+- `build_log_paths()` dùng `log_file_targets(...)`, giữ nguyên public JSON shape: path vẫn được bọc bằng status `present`/`expected`.
+- `scripts/capture_flower_logs.py` dùng cùng `log_file_targets(Path(logs_root) / exp_id)`, bỏ pattern filename inline riêng. Vì vậy capture path và artifact expected path khớp by construction cho mọi `exp_id`.
+- Thêm contract tests để bắt drift giữa capture helper và deployment summary paths, dùng `EXP-015` làm exp id đại diện.
+
+#### 3. Kiểm Chứng
+- Targeted tests:
+  ```bash
+  venv/bin/python -m pytest tests/test_deployment_artifacts.py tests/test_capture_flower_logs.py
+  ```
+  Kết quả Codex verify: `43 passed`.
+- Full suite:
+  ```bash
+  venv/bin/python -m pytest
+  ```
+  Kết quả Codex verify: `213 passed`.
+- Dry-run từ Claude xác nhận mọi path resolve dưới `outputs/logs/EXP-015/`. Lưu ý script tạo sẵn thư mục rỗng trong `outputs/logs/EXP-015/`; đây là output gitignored.
+
+#### 4. Quan Sát & Rủi Ro
+- Đây là hardening code/test-only, chưa phải run deployment strict 2-Colab thật. Không ghi metric mAP/loss cho WIP này.
+- `deployment_summary.json` và `round_metrics.json` đủ để suy ra strict config, nhưng `actual_train_clients`, `actual_evaluate_clients`, `actual_client_ids` vẫn là `null` đúng thiết kế. Nếu cần bằng chứng node participation, vẫn phải capture raw Flower logstream.
+- Communication estimate vẫn dựa trên configured `num_clients x rounds_completed`, không phải actual replies.
+
+#### 5. Bước Tiếp Theo
+- [x] Chạy deployment thật `EXP-015-strict-2site-logged` với 2 Colab online và `min_train_nodes=min_evaluate_nodes=min_available_nodes=2`.
+- [x] Capture `flwr log` ngay khi SuperLink còn reachable bằng đúng `--exp-id EXP-015-strict-2site-logged`, để raw log folder khớp structured artifact folder.
+- [x] Journal kết quả deployment thật sau khi có `deployment_summary.json`, `round_metrics.json`, `final_head.npz`, và raw Flower log chứng minh sampled/received 2 nodes.
+
+<a id="exp-015-strict-2site-logged"></a>
+### EXP-015 — PPE Detection Strict 2-Site Deployment With Clean Log Capture
+- **Mã Thử Nghiệm:** EXP-015-strict-2site-logged
+- **Ngày Thực Hiện:** 2026-07-02
+- **Trạng Thái:** Thành công theo `deployment_summary.json`, `round_metrics.json`, và raw Flower logstream
+- **Git Commit Hash:** `[pending]`
+
+---
+
+#### 1. Mục Tiêu (Objective)
+- Chạy lại deployment thật ở chế độ **strict 2/2** sau khi đã harden đường dẫn raw log.
+- Xác nhận `deployment_summary.json`, `round_metrics.json`, `final_head.npz`, và raw Flower log capture cùng dùng đúng exp id/folder.
+- Tạo baseline strict sạch cho Phase X/C/M trong `PLAN.md`.
+
+#### 2. Cấu Hình & Thiết Lập (Configuration)
+- **Topology:** Mac SuperLink + 2 Colab SuperNodes qua Tailscale/proxychains.
+- **Run id:** `6650255022376595661`
+- **Run config chính:**
+  - `exp-id="EXP-015-strict-2site-logged"`
+  - `output-dir="outputs/EXP-015-strict-2site-logged"`
+  - `num-clients=2`
+  - `min-train-nodes=2`
+  - `min-evaluate-nodes=2`
+  - `min-available-nodes=2`
+  - `num-rounds=1`
+  - `local-epochs=1`
+  - `batch-size=2`
+  - `image-size=512`
+  - `lr=0.005`
+  - `device="cuda"`
+  - `num-workers=0`
+- **Model setup:** Faster R-CNN MobileNetV3-Large-FPN pretrained, freeze backbone+FPN, aggregate detection head only.
+
+#### 3. Kết Quả (Results)
+
+| Mode | Status | Rounds Completed | Train Loss | mAP@0.5:0.95 | mAP@0.5 | mAP@0.75 | Runtime |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| Federated deployment strict 2-site logged baseline | completed | 1 | 0.5492 | 0.0170 | 0.0498 | 0.0065 | 323.07s |
+
+- `deployment_summary.json` ghi:
+  - `status`: `completed`
+  - `rounds_completed`: `1`
+  - `min_train_nodes`: `2`
+  - `min_evaluate_nodes`: `2`
+  - `min_available_nodes`: `2`
+  - `update_size_bytes`: `58,204,640`
+  - `planned_communication_cost_bytes`: `232,818,560`
+  - `estimated_completed_communication_cost_bytes`: `232,818,560`
+- Raw Flower logstream ghi rõ:
+  - `configure_train: Sampled 2 nodes (out of 2)`
+  - `aggregate_train: Received 2 results and 0 failures`
+  - `configure_evaluate: Sampled 2 nodes (out of 2)`
+  - `aggregate_evaluate: Received 2 results and 0 failures`
+
+#### 4. Artifact Check
+- **Structured output path:** `outputs/EXP-015-strict-2site-logged/`
+- **Files:**
+  - `outputs/EXP-015-strict-2site-logged/deployment_summary.json`
+  - `outputs/EXP-015-strict-2site-logged/round_metrics.json`
+  - `outputs/EXP-015-strict-2site-logged/final_head.npz`
+- **Raw Flower log capture:** `outputs/logs/EXP-015-strict-2site-logged/flower_run_log.txt`
+- **Log capture summary:** `outputs/logs/EXP-015-strict-2site-logged/log_capture_summary.json`
+- Manual live terminal logs are still expected-only:
+  - `outputs/logs/EXP-015-strict-2site-logged/server_log.txt`
+  - `outputs/logs/EXP-015-strict-2site-logged/client_site_b_log.txt`
+  - `outputs/logs/EXP-015-strict-2site-logged/client_site_c_log.txt`
+
+#### 5. Quan Sát & Rủi Ro (Observations & Risks)
+- `capture_flower_logs.py` chạy đúng: script chỉ in status/path ra terminal, còn nội dung log được ghi vào `flower_run_log.txt`. Vì vậy terminal không hiện toàn bộ logstream là hành vi kỳ vọng.
+- EXP-015 là strict 2/2 baseline sạch: khác với EXP-014 one-site relaxed run, raw log chứng minh đủ 2 nodes được sampled và trả kết quả.
+- `round_metrics.json` vẫn để participation fields là `null` vì Flower `Result` không expose identity/count chi tiết; participation evidence nằm trong raw Flower logstream.
+- Metric gần EXP-012 vì cùng cấu hình 1 round strict 2-site; mục tiêu chính là baseline observability sạch, không phải cải thiện model quality.
+
+#### 6. Lệnh Tái Lập (Reproducibility)
+```bash
+venv/bin/flwr run . deploy --stream \
+  --run-config 'exp-id="EXP-015-strict-2site-logged" output-dir="outputs/EXP-015-strict-2site-logged" num-clients=2 min-train-nodes=2 min-evaluate-nodes=2 min-available-nodes=2 num-rounds=1 local-epochs=1 batch-size=2 image-size=512 lr=0.005 device="cuda" num-workers=0'
+
+PATH="$PWD/venv/bin:$PATH" venv/bin/python scripts/capture_flower_logs.py \
+  --exp-id EXP-015-strict-2site-logged \
+  --run-id 6650255022376595661
+```
+
+#### 7. Bước Tiếp Theo (Next Steps)
+- [x] Xác nhận strict 2/2 deployment baseline có đủ structured artifacts.
+- [x] Capture raw Flower log đúng folder `outputs/logs/EXP-015-strict-2site-logged/`.
+- [x] Xác nhận raw log chứng minh sampled/received 2 nodes.
+- [ ] Chuyển sang Phase X: thiết kế và implement `EdgeProfile` emulation cho local-sim/Colab.

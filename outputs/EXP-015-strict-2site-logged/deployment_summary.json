@@ -1,0 +1,66 @@
+{
+  "config": {
+    "batch_size": 2,
+    "device": "cuda",
+    "image_size": 512,
+    "local_epochs": 1,
+    "lr": 0.005,
+    "min_available_nodes": 2,
+    "min_evaluate_nodes": 2,
+    "min_train_nodes": 2,
+    "num_clients": 2,
+    "num_rounds": 1,
+    "pretrained": true,
+    "seed": 2026
+  },
+  "estimated_completed_communication_cost_bytes": 232818560,
+  "estimated_completed_communication_cost_note": "estimated_completed_communication_cost_bytes is derived from configured num_clients x rounds_completed, not from actual client replies (Flower Result does not expose actual per-round participation).",
+  "exp_id": "EXP-015-strict-2site-logged",
+  "final_metrics": {
+    "map": 0.016955444123595953,
+    "map_50": 0.04982457868754864,
+    "map_75": 0.006522184470668435,
+    "train_loss": 0.5491980063108106
+  },
+  "flower_log_command": "flwr log 6650255022376595661 deploy --show",
+  "logs": {
+    "client_logs": {
+      "site-b": {
+        "path": "outputs/logs/EXP-015-strict-2site-logged/client_site_b_log.txt",
+        "status": "expected"
+      },
+      "site-c": {
+        "path": "outputs/logs/EXP-015-strict-2site-logged/client_site_c_log.txt",
+        "status": "expected"
+      }
+    },
+    "flower_log_command": "flwr log 6650255022376595661 deploy --show",
+    "log_dir": "outputs/logs/EXP-015-strict-2site-logged",
+    "note": "Raw Flower/SuperLink/SuperNode logs are captured manually under log_dir; structured metrics live in round_metrics.json / deployment_summary.json.",
+    "server_log": {
+      "path": "outputs/logs/EXP-015-strict-2site-logged/server_log.txt",
+      "status": "expected"
+    }
+  },
+  "mode": "federated-deployment",
+  "note": "Server holds no raw data; metrics are weighted distributed-evaluation aggregates returned by clients.",
+  "output_paths": {
+    "deployment_summary": "outputs/EXP-015-strict-2site-logged/deployment_summary.json",
+    "final_head": "outputs/EXP-015-strict-2site-logged/final_head.npz",
+    "round_metrics_path": "outputs/EXP-015-strict-2site-logged/round_metrics.json"
+  },
+  "planned_communication_cost_bytes": 232818560,
+  "rounds_completed": 1,
+  "server": {
+    "aggregation_strategy": "FedAvg",
+    "evaluation": "distributed",
+    "weighted_by_key": "num-examples"
+  },
+  "status": "completed",
+  "timing": {
+    "ended_at": "2026-07-02T08:13:21.224938+00:00",
+    "runtime_seconds": 323.068,
+    "started_at": "2026-07-02T08:07:58.157367+00:00"
+  },
+  "update_size_bytes": 58204640
+}

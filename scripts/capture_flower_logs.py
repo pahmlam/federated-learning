@@ -37,7 +37,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from src.fl.deployment_artifacts import DEPLOYMENT_SITE_LABELS
+from src.fl.deployment_artifacts import log_file_targets
 from src.utils.io import write_json
 
 DEFAULT_LOGS_ROOT = "outputs/logs"
@@ -47,19 +47,13 @@ STATUS_FAILED = "failed"
 
 
 def build_log_targets(exp_id: str, logs_root: str | Path) -> dict[str, Any]:
-    """Resolve every log path for a run under ``<logs_root>/<exp_id>/``."""
+    """Resolve every log path for a run under ``<logs_root>/<exp_id>/``.
 
-    log_dir = Path(logs_root) / exp_id
-    client_logs = {
-        label: log_dir / f"client_{label.replace('-', '_')}_log.txt"
-        for label in DEPLOYMENT_SITE_LABELS
-    }
-    return {
-        "log_dir": log_dir,
-        "flower_run_log": log_dir / "flower_run_log.txt",
-        "server_log": log_dir / "server_log.txt",
-        "client_logs": client_logs,
-    }
+    Delegates to :func:`log_file_targets` so capture paths stay identical to the
+    deployment artifact writer's expected log locations for any exp id.
+    """
+
+    return log_file_targets(Path(logs_root) / exp_id)
 
 
 def flwr_log_command(run_id: str, federation: str) -> list[str]:

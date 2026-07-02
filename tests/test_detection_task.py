@@ -12,6 +12,7 @@ import numpy as np
 import pytest
 
 import src.fl.detection_task as dt
+from src.fl.edge_profile import EdgeProfile
 from src.fl.detection_task import DetectionTask, DetectionTaskContext
 from src.fl.task import RoundOutput
 from src.models.detection_model import resolve_device
@@ -95,6 +96,70 @@ def test_train_round_maps_config_to_trainer_kwargs(monkeypatch):
     assert out == RoundOutput(num_examples=9, metrics={"train_loss": 0.5})
 
 
+def test_train_round_applies_edge_profile_sample_limit_and_delay(monkeypatch):
+    captured = {}
+    sleeps = []
+
+    def _fake_train(model, dataset, **kwargs):
+        captured["dataset"] = dataset
+        captured["kwargs"] = kwargs
+        return {"train_loss": 0.25}
+
+    monkeypatch.setattr(dt, "train_detection_head", _fake_train)
+    monkeypatch.setattr(dt.time, "sleep", lambda seconds: sleeps.append(seconds))
+
+    config = _config(batch_size=1, num_workers=0, seed=3)
+    client = SimpleNamespace(
+        client_id=2,
+        client_label="site-b",
+        train=list(range(9)),
+        val=list(range(4)),
+    )
+    ctx = DetectionTaskContext(
+        config=config,
+        bundle=SimpleNamespace(num_classes=9),
+        client=client,
+        edge_profile=EdgeProfile(
+            tier="slow-edge",
+            max_train_samples=3,
+            artificial_train_delay_sec=0.5,
+            bandwidth_mbps=10,
+            latency_ms=100,
+        ),
+        update_size_bytes=1_000_000,
+    )
+
+    out = DetectionTask().train_round(model="MODEL", ctx=ctx)
+
+    assert len(captured["dataset"]) == 3
+    assert captured["kwargs"]["batch_size"] == 1
+    assert sleeps == [0.5]
+    assert out.num_examples == 3
+    assert out.metrics["train_loss"] == 0.25
+    assert out.metrics["edge_profile_enabled"] == 1.0
+    assert out.metrics["expected_transfer_time"] == pytest.approx(0.9)
+    assert "effective_train_time" in out.metrics
+
+
+def test_train_round_edge_profile_can_block_client():
+    config = _config()
+    client = SimpleNamespace(
+        client_id=0,
+        client_label="site-a",
+        train=[0],
+        val=[0],
+    )
+    ctx = DetectionTaskContext(
+        config=config,
+        bundle=SimpleNamespace(num_classes=9),
+        client=client,
+        edge_profile=EdgeProfile(availability_prob=0.0),
+    )
+
+    with pytest.raises(RuntimeError, match="EdgeProfile blocked client site-a"):
+        DetectionTask().train_round(model="MODEL", ctx=ctx)
+
+
 # --- evaluate_round wiring: metric keys + fallback -------------------------
 
 
@@ -135,14 +200,20 @@ def test_evaluate_round_uses_minus_one_for_missing_metrics(monkeypatch):
 
 def test_load_client_context_composes_config_bundle_client(monkeypatch):
     config = _config()
-    bundle = SimpleNamespace(num_classes=9, clients=["c0"])
+    bundle = SimpleNamespace(num_classes=9, clients=["c0"], image_size=64)
+    selected = SimpleNamespace(
+        client_id=0,
+        client_label="site-a",
+        train=list(range(2)),
+        val=list(range(1)),
+    )
     monkeypatch.setattr(dt, "detection_config_from_context", lambda context: config)
     monkeypatch.setattr(dt, "load_detection_bundle", lambda *a, **k: bundle)
-    monkeypatch.setattr(dt, "select_detection_client", lambda context, b, **k: "SELECTED")
+    monkeypatch.setattr(dt, "select_detection_client", lambda context, b, **k: selected)
 
     ctx = DetectionTask().load_client_context(context=object())
 
     assert isinstance(ctx, DetectionTaskContext)
     assert ctx.config is config
     assert ctx.bundle is bundle
-    assert ctx.client == "SELECTED"
+    assert ctx.client is selected

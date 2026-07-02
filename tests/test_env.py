@@ -29,6 +29,8 @@ def _supported_env_names():
         "MIN_TRAIN_NODES",
         "MIN_EVALUATE_NODES",
         "MIN_AVAILABLE_NODES",
+        "EDGE_PROFILE",
+        "EDGE_PROFILES",
     )
     legacy = {
         "RUN_ID": "EXP_ID",
@@ -91,6 +93,18 @@ def test_fl_env_values_parse_min_node_overrides_as_int(tmp_path):
     assert values["min_evaluate_nodes"] == 1
     assert values["min_available_nodes"] == 2
     assert all(isinstance(values[key], int) for key in values)
+
+
+def test_fl_env_values_parse_edge_profile_strings(tmp_path):
+    env_file = tmp_path / ".env"
+    env_file.write_text(
+        'FL_EDGE_PROFILE=slow\nFL_EDGE_PROFILES={"site-b":"low-bandwidth"}\n',
+        encoding="utf-8",
+    )
+    values = fl_env_values(DetectionConfig, path=env_file)
+
+    assert values["edge_profile"] == "slow"
+    assert values["edge_profiles"] == '{"site-b":"low-bandwidth"}'
 
 
 def test_legacy_detection_env_alias_still_works(tmp_path, monkeypatch):
@@ -197,6 +211,18 @@ def test_detection_config_env_can_override_pyproject_default_min_nodes(
     assert config.min_train_nodes == 1
     assert config.effective_min_evaluate_nodes == 2
     assert config.effective_min_available_nodes == 2
+
+
+def test_detection_config_env_can_override_blank_pyproject_edge_profile(tmp_path):
+    env_file = tmp_path / ".env"
+    env_file.write_text("FL_EDGE_PROFILE=slow\n", encoding="utf-8")
+    config = DetectionConfig.from_env_and_overrides(
+        {"edge-profile": ""},
+        env_path=env_file,
+        env_overrides=True,
+    )
+
+    assert config.edge_profile == "slow"
 
 
 def test_detection_config_keeps_explicit_run_config_min_node_override(

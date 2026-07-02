@@ -35,6 +35,8 @@ _ENV_TO_FIELD = {
     "FL_MIN_TRAIN_NODES": "min_train_nodes",
     "FL_MIN_EVALUATE_NODES": "min_evaluate_nodes",
     "FL_MIN_AVAILABLE_NODES": "min_available_nodes",
+    "FL_EDGE_PROFILE": "edge_profile",
+    "FL_EDGE_PROFILES": "edge_profiles",
 }
 _LEGACY_ENV_TO_FIELD = {
     "FL_DET_EXP_ID": "exp_id",

@@ -39,6 +39,8 @@ def _supported_env_names():
         "DEVICE",
         "PRETRAINED",
         "SEED",
+        "EDGE_PROFILE",
+        "EDGE_PROFILES",
     )
     legacy = {
         "RUN_ID": "EXP_ID",

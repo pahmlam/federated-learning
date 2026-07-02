@@ -8,7 +8,7 @@ of truth shared by the dataset (label remap) and the model (head size).
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 from src.data.manifest_generator import DEFAULT_CORE_PPE
@@ -65,10 +65,19 @@ class DetectionConfig:
     min_train_nodes: int | None = None
     min_evaluate_nodes: int | None = None
     min_available_nodes: int | None = None
+    # Optional code-level edge-device emulation. Kept string-based so Flower
+    # run-config/env can pass either a built-in profile name or JSON object.
+    edge_profile: str | None = None
+    edge_profiles: str | None = None
 
     def normalized(self) -> "DetectionConfig":
-        _validate_detection_config(self)
-        return self
+        config = replace(
+            self,
+            edge_profile=_none_if_blank(self.edge_profile),
+            edge_profiles=_none_if_blank(self.edge_profiles),
+        )
+        _validate_detection_config(config)
+        return config
 
     @property
     def effective_min_train_nodes(self) -> int:
@@ -162,6 +171,8 @@ def _is_default_like_run_config_value(
 
     if getattr(default_config, key) == value:
         return True
+    if getattr(default_config, key, None) is None and value in {"", None}:
+        return True
     if key in {"min_train_nodes", "min_evaluate_nodes", "min_available_nodes"}:
         strict_num_clients = int(init_values.get("num_clients", default_config.num_clients))
         return value in {None, strict_num_clients}
@@ -203,3 +214,10 @@ def _validate_detection_config(config: DetectionConfig) -> None:
         raise ValueError("min_available_nodes must be >= min_train_nodes")
     if config.effective_min_available_nodes < config.effective_min_evaluate_nodes:
         raise ValueError("min_available_nodes must be >= min_evaluate_nodes")
+
+
+def _none_if_blank(value: str | None) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None

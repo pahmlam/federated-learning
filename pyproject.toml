@@ -60,6 +60,8 @@ seed = 2026
 min-train-nodes = 2
 min-evaluate-nodes = 2
 min-available-nodes = 2
+edge-profile = ""
+edge-profiles = ""
 
 
 #######################################################################

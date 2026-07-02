@@ -14,6 +14,7 @@ from flwr.clientapp import ClientApp
 
 from src.fl.detection_task import (
     DetectionTask,
+    context_with_transfer_size,
     detection_config_from_context,
     load_detection_client_context,
     select_detection_client,
@@ -34,8 +35,10 @@ _TASK = DetectionTask()
 @app.train()
 def train(msg: Message, context: Context) -> Message:
     ctx = _TASK.load_client_context(context)
+    arrays = msg.content["arrays"].to_numpy_ndarrays()
+    ctx = context_with_transfer_size(ctx, arrays)
     model = _TASK.build_model(ctx.config, num_classes=ctx.bundle.num_classes)
-    _TASK.set_global_arrays(model, msg.content["arrays"].to_numpy_ndarrays())
+    _TASK.set_global_arrays(model, arrays)
     out = _TASK.train_round(model, ctx)
 
     content = RecordDict(
@@ -50,8 +53,10 @@ def train(msg: Message, context: Context) -> Message:
 @app.evaluate()
 def evaluate(msg: Message, context: Context) -> Message:
     ctx = _TASK.load_client_context(context)
+    arrays = msg.content["arrays"].to_numpy_ndarrays()
+    ctx = context_with_transfer_size(ctx, arrays)
     model = _TASK.build_model(ctx.config, num_classes=ctx.bundle.num_classes)
-    _TASK.set_global_arrays(model, msg.content["arrays"].to_numpy_ndarrays())
+    _TASK.set_global_arrays(model, arrays)
     out = _TASK.evaluate_round(model, ctx)
 
     return Message(

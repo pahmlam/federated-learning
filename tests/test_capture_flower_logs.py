@@ -25,6 +25,10 @@ def _load_module():
 
 module = _load_module()
 
+# Executing the capture module put ROOT on sys.path, so these imports resolve.
+from src.fl.deployment_artifacts import build_log_paths, deployment_log_dir
+from src.utils.detection_config import DetectionConfig
+
 
 def _base_args(tmp_path, *extra):
     return [
@@ -49,6 +53,26 @@ def test_build_log_targets_paths(tmp_path):
     assert targets["server_log"] == log_dir / "server_log.txt"
     assert targets["client_logs"]["site-b"] == log_dir / "client_site_b_log.txt"
     assert targets["client_logs"]["site-c"] == log_dir / "client_site_c_log.txt"
+
+
+def test_build_log_targets_matches_deployment_log_dir():
+    """Capture paths must equal the deployment writer's expected log locations.
+
+    Both resolve through the shared ``log_file_targets`` helper, so for any exp id
+    a run's captured logs land exactly where its ``deployment_summary.json`` points.
+    """
+    exp_id = "EXP-015"
+    targets = module.build_log_targets(exp_id, "outputs/logs")
+    config = DetectionConfig(
+        exp_id=exp_id, output_dir=f"outputs/{exp_id}", pretrained=False
+    )
+
+    assert targets["log_dir"] == deployment_log_dir(config)
+
+    logs = build_log_paths(config)
+    assert str(targets["server_log"]) == logs["server_log"]["path"]
+    for label, path in targets["client_logs"].items():
+        assert str(path) == logs["client_logs"][label]["path"]
 
 
 def test_flwr_log_command_shape():

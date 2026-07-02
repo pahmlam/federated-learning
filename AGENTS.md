@@ -47,7 +47,7 @@ Do **not** assume the project is trying to train a full vision model from scratc
 ### Research And Planning Docs
 
 - `docs/md/kehoachthuviec.md`: internship/work plan and milestones.
-- `docs/md/PLAN.md`: daily checklist from 10/06/2026 to 31/08/2026.
+- `docs/md/PLAN.md`: phase-based roadmap (Phase S strict baseline → M personalization → C communication efficiency → R robustness → E evaluation artifact → G multi-task runtime → H hardening → F final report) plus the system completeness checklist. No longer a date-bound daily checklist; direction is informed by `docs/md/deep-research-report.md`.
 - `docs/md/REPORT.md`: research report about FL for camera/vision use cases.
 - `docs/Federated Learning.md`: FL background notes.
 - `docs/journal/README.md`: single-file experiment journal grouped by date; append all EXP/WIP entries here.
@@ -93,21 +93,22 @@ A client = one site / edge box / NVR / local server — never "one camera = one 
 
 ### Deployment Topology (real, not simulation)
 
-The PPE detection track runs as **real cross-machine federated learning** over a Tailscale mesh VPN:
+The PPE detection track runs as **real cross-machine federated learning** over Tailscale userspace networking:
 
 | Role | Machine | Notes |
 | :--- | :--- | :--- |
 | **Server / SuperLink** (aggregator) | Mac local (M2, CPU) | Light — only aggregates weights. Holds **no data**. |
-| **Client #1 — `site-a`** | Ubuntu + RTX3060 (GPU) | SuperNode. Also runs the centralized pooled reference baseline. |
-| **Client #2 — `site-b`** | Google Colab account #1 | SuperNode (GPU). |
-| **Client #3 — `site-c`** | Google Colab account #2 | SuperNode (GPU). |
+| **Client #1 — `site-b`** | Google Colab account #1 | SuperNode (GPU). |
+| **Client #2 — `site-c`** | Google Colab account #2 | SuperNode (GPU). |
+
+`site-a` / Ubuntu RTX3060 is **not part of the active deployment target** anymore because it cannot be run/joined under the current access constraints. Keep old `site-a` results only as historical simulation context.
 
 Key consequences:
 
 - **Data stays local per client** (each holds only its own shard). The server never sees raw data → use **distributed evaluation**; the global metric is the weighted aggregate of per-client validation, not a server-side pooled eval.
-- Networking is **Tailscale** (Mac gets a stable tailnet IP; Colab/Ubuntu dial the SuperLink). Run `--insecure` only because the tailnet is private.
+- Networking is **Tailscale userspace + proxychains** for Colab clients (Mac gets a stable tailnet IP; Colab dials the SuperLink through SOCKS). Run `--insecure` only because the tailnet is private.
 - Colab clients are **stragglers by nature** (session limits, disconnects) — keep rounds short and make FedAvg tolerant of missing nodes.
-- Validate in **simulation first** (`flwr run . local-sim`, runnable on the RTX3060), then deploy (`flwr run . deploy`).
+- Validate in **simulation first** (`flwr run . local-sim` or `scripts/run_detection_sim.py`), then deploy (`flwr run . deploy`).
 
 ### Required Baselines And Metrics
 
@@ -115,7 +116,7 @@ Every serious experiment must compare `centralized` (if possible), `local-only`,
 You MUST log every experiment by appending to [docs/journal/README.md](file:///Users/phamtunglam/Documents/VNPT/federated-learning/docs/journal/README.md). Keep this as the single journal file, grouped by date; do not create per-EXP journal files or a separate template.
 Report all metrics specified by the journal rules: global/per-client loss and metrics (Acc/F1/mAP), training time, round count, update size, and communication cost.
 
-For **PPE detection**, the primary metric is **mAP@0.5 and mAP@0.5:0.95 with per-class AP** (via `torchmetrics.detection.MeanAveragePrecision`), reported **per-client** plus a weighted global aggregate. The `centralized` pooled baseline is a reference only (it requires gathering all data on one machine — the Ubuntu GPU — which is outside the FL privacy model).
+For **PPE detection**, the primary metric is **mAP@0.5 and mAP@0.5:0.95 with per-class AP** (via `torchmetrics.detection.MeanAveragePrecision`), reported **per-client** plus a weighted global aggregate. The `centralized` pooled baseline is a reference only (it requires gathering all data on one machine, which is outside the FL privacy model).
 
 ### Data And Privacy
 
@@ -181,8 +182,8 @@ venv/bin/python -m pytest
 Detection track (current) — once built, runs via the modern Flower API:
 
 ```bash
-flwr run . local-sim   # validate in simulation (runnable on the RTX3060)
-flwr run . deploy       # real 3-node deployment (SuperLink on Mac, SuperNodes over Tailscale)
+flwr run . local-sim   # validate in simulation
+flwr run . deploy       # real 2-Colab deployment (SuperLink on Mac, SuperNodes over Tailscale userspace)
 ```
 
 Flower quickstart reference (do not modify unless asked): `cd demo && flwr run .`

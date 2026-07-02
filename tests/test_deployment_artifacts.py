@@ -30,6 +30,7 @@ from src.fl.deployment_artifacts import (
     derive_status,
     finalize_deployment_artifacts,
     latest_round_metrics,
+    log_file_targets,
     result_head_arrays,
     save_head_npz,
     write_deployment_artifacts,
@@ -434,6 +435,18 @@ def test_build_round_metrics_none_result_has_no_rounds(tmp_path):
 # --- raw-log paths ---------------------------------------------------------
 
 
+def test_log_file_targets_single_source(tmp_path):
+    log_dir = Path("outputs/logs/EXP-015")
+    targets = log_file_targets(log_dir)
+
+    assert targets["log_dir"] == log_dir
+    assert targets["flower_run_log"] == log_dir / "flower_run_log.txt"
+    assert targets["server_log"] == log_dir / "server_log.txt"
+    assert set(targets["client_logs"]) == set(DEPLOYMENT_SITE_LABELS)
+    assert targets["client_logs"]["site-b"] == log_dir / "client_site_b_log.txt"
+    assert targets["client_logs"]["site-c"] == log_dir / "client_site_c_log.txt"
+
+
 def test_deployment_log_dir_maps_output_dir_to_logs_subtree(tmp_path):
     config = _config(tmp_path, output_dir="outputs/EXP-012", exp_id="EXP-012")
     assert deployment_log_dir(config) == Path("outputs/logs/EXP-012")
@@ -519,3 +532,77 @@ def test_build_deployment_summary_backward_compatible_keys(tmp_path):
     )
     assert summary["flower_log_command"] == "flwr log <run-id> deploy --show"
     assert summary["logs"]["client_logs"]["site-b"]["status"] == STATUS_EXPECTED
+
+
+# --- strict 2-client deployment: required-field contract -------------------
+
+
+def _strict_two_client_config(tmp_path):
+    """A strict 2-client config: every min-node threshold equals num_clients."""
+    return _config(
+        tmp_path,
+        num_clients=2,
+        min_train_nodes=2,
+        min_evaluate_nodes=2,
+        min_available_nodes=2,
+    )
+
+
+def test_strict_two_client_summary_exposes_required_fields(tmp_path):
+    config = _strict_two_client_config(tmp_path)
+    summary = build_deployment_summary(
+        config,
+        status="completed",
+        update_size_bytes=1000,
+        started_at="2026-06-30T00:00:00+00:00",
+        ended_at="2026-06-30T00:01:00+00:00",
+        runtime_seconds=60.0,
+        result=_fake_result(rounds=2),
+        output_paths={"deployment_summary": "x.json"},
+    )
+
+    cfg = summary["config"]
+    # Strict participation is derivable: every min-node threshold == num_clients.
+    assert cfg["num_clients"] == 2
+    assert cfg["min_train_nodes"] == 2
+    assert cfg["min_evaluate_nodes"] == 2
+    assert cfg["min_available_nodes"] == 2
+    assert (
+        cfg["min_train_nodes"]
+        == cfg["min_evaluate_nodes"]
+        == cfg["min_available_nodes"]
+        == cfg["num_clients"]
+    )
+
+    # Interpreting a run needs completion, cost, timing, and eval semantics.
+    assert isinstance(summary["rounds_completed"], int)
+    assert isinstance(summary["update_size_bytes"], int)
+    assert isinstance(summary["planned_communication_cost_bytes"], int)
+    assert isinstance(summary["estimated_completed_communication_cost_bytes"], int)
+    timing = summary["timing"]
+    assert timing["started_at"] == "2026-06-30T00:00:00+00:00"
+    assert timing["ended_at"] == "2026-06-30T00:01:00+00:00"
+    assert isinstance(timing["runtime_seconds"], float)
+    assert summary["server"]["evaluation"] == "distributed"
+
+
+def test_strict_two_client_round_metrics_expose_required_fields(tmp_path):
+    config = _strict_two_client_config(tmp_path)
+    metrics = build_round_metrics(
+        config, status="completed", update_size_bytes=1000, result=_fake_result(rounds=2)
+    )
+
+    assert metrics["num_clients"] == 2
+    assert metrics["min_train_nodes"] == 2
+    assert metrics["min_evaluate_nodes"] == 2
+    assert metrics["min_available_nodes"] == 2
+
+    assert metrics["rounds"], "strict run must record per-round entries"
+    for entry in metrics["rounds"]:
+        assert isinstance(entry["round"], int)
+        assert "weighted_aggregate" in entry["train"]
+        assert "weighted_aggregate" in entry["evaluate"]
+        # Participation stays honestly null -- Flower Result cannot expose it.
+        assert entry["actual_train_clients"] is None
+        assert entry["actual_evaluate_clients"] is None
+        assert entry["actual_client_ids"] is None
