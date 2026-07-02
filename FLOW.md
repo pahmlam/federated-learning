@@ -18,6 +18,8 @@ The implemented system supports:
 - Centralized, local-only, and federated simulation modes.
 - Flower `ClientApp` / `ServerApp` deployment path.
 - Distributed evaluation: each client evaluates on its own validation shard.
+- Minimal workload abstraction via `FederatedTask`, with detection and embedding
+  classification implementations.
 
 A deployment run now writes its own server-side artifacts:
 
@@ -69,7 +71,9 @@ the images; the server still holds no raw data.
 
 The system does not yet implement these deployment hardening pieces:
 
-- per-client deployment metric files and a server log artifact.
+- automatic live SuperLink/SuperNode terminal log capture,
+- actual responding client IDs/counts in structured artifacts,
+- checkpoint/resume after interrupted deployment runs.
 
 ServerApp min-node thresholds are configurable for dropout robustness smoke
 runs:
@@ -94,12 +98,41 @@ PPE dataset
 
 Important files:
 
+- `src/fl/task.py`
+- `src/fl/detection_task.py`
 - `configs/datasets/ppe_detection_exp011_manifest.csv`
 - `src/data/detection_manifest.py`
 - `src/data/detection_dataset.py`
 - `src/data/detection_data.py`
 - `src/models/detection_model.py`
 - `src/training/detection_trainer.py`
+
+## 2.1 Workload Task Seam
+
+The task abstraction layer is implemented as:
+
+- `src/fl/task.py`: `FederatedTask` protocol and `RoundOutput`.
+- `src/fl/detection_task.py`: `DetectionTask`, the PPE detection implementation.
+- `src/fl/embedding_classification_task.py`: `EmbeddingClassificationTask`, a
+  lightweight embedding classification implementation.
+
+The protocol captures only what Flower orchestration needs:
+
+- load per-client task context,
+- build the model,
+- get/set global trainable arrays,
+- run one local train round,
+- run one local evaluate round.
+
+The Flower ClientApp now calls `DetectionTask` for detection-specific
+model/data/train/evaluate wiring. ServerApp uses it for initial model and global
+array extraction. `EmbeddingClassificationTask` reuses the stage-1
+embedding-head stack and is exercised offline as the second workload proof.
+Artifact writing, final-head `.npz` naming, and the in-process detection
+simulation path remain detection-specific by design.
+
+This is intentionally not a plugin registry. A future workload, such as face
+recognition, should first implement the same protocol as a new task wrapper.
 
 ## 3. Manifest And Client Shards
 
@@ -339,8 +372,8 @@ Flow:
 ```text
 ServerApp starts
   -> read run config / .env values
-  -> build initial model
-  -> extract initial detection-head arrays
+  -> DetectionTask builds initial model
+  -> DetectionTask extracts initial global arrays
   -> measure head update size + capture trainable param names
   -> configure Flower FedAvg
   -> result = strategy.start(...)
@@ -381,10 +414,10 @@ Flow:
 
 ```text
 client receives train message with global head arrays
-  -> load local config and local shard
-  -> build model
-  -> set model head from received arrays
-  -> train on client.train
+  -> DetectionTask loads local config and local shard
+  -> DetectionTask builds model
+  -> DetectionTask sets model head from received arrays
+  -> DetectionTask trains on client.train
   -> return updated head arrays
   -> return train_loss and num-examples
 ```
@@ -402,10 +435,10 @@ Flow:
 
 ```text
 client receives evaluate message with aggregated global head arrays
-  -> load local config and local shard
-  -> build model
-  -> set model head from received arrays
-  -> evaluate on client.val
+  -> DetectionTask loads local config and local shard
+  -> DetectionTask builds model
+  -> DetectionTask sets model head from received arrays
+  -> DetectionTask evaluates on client.val
   -> return scalar metrics and num-examples
 ```
 
@@ -530,6 +563,9 @@ Implemented:
   expected raw log paths under `outputs/logs/<EXP-ID>/`.
 - Raw Flower run log capture helper: `scripts/capture_flower_logs.py` captures
   `flwr log <RUN_ID> deploy --show` after a run.
+- Task abstraction seam: `FederatedTask` plus two implementations
+  (`DetectionTask`, `EmbeddingClassificationTask`). Flower detection apps use
+  the detection task wrapper for model/data/train/evaluate wiring.
 - Site-side final-head evaluation: `scripts/evaluate_final_detection_head.py`
   loads `final_head.npz`, evaluates on a local site validation shard, and writes a
   JSON metrics report.
@@ -542,9 +578,11 @@ Implemented:
 
 Partially implemented:
 
-- Deployment robustness: strict 2-Colab target passed; min-node knobs now allow
-  1-of-2 dropout smoke runs, but actual dropout, checkpoint, and resume behavior
-  are not fully tested.
+- Deployment robustness: strict 2-Colab target passed; min-node knobs allow
+  1-of-2 runs and EXP-014 logged one-site participation, but checkpoint/resume
+  behavior is not implemented.
+- Task abstraction: two workloads implement the seam, but only detection is wired
+  into the active Flower app/deployment path.
 - Post-FL handoff: site-side final-head evaluation is verified for validation
   metrics on the two Colab sites; operational image inference is implemented
   and unit-tested, but video inference is still missing.
@@ -556,9 +594,7 @@ Missing:
 - Actual responding client IDs/counts in structured artifacts.
 - Export/push final model/head to clients as a formal handoff step.
 - Site-side video inference command for operational use.
-- Actual Colab dropout smoke run with relaxed min-node thresholds.
-- Task abstraction layer for plugging in a new workload without touching the
-  detection-specific core.
+- Runtime task selection / a second workload wired into Flower, if needed.
 - Additional aggregation strategies beyond FedAvg.
 
 ## 11. Recommended Next Flow To Add
@@ -580,8 +616,11 @@ Flower deployment run completes
   -> run site eval against real final_head.npz          [done: site-b/site-c]
   -> run operational image inference                    [done, unit-tested]
   -> configure relaxed min nodes for dropout smoke      [done, unit-tested]
-  -> run actual Colab dropout smoke                     [next]
+  -> run actual one-site/dropout logged smoke           [done: EXP-014]
+  -> add first task abstraction seam                    [done, unit-tested]
+  -> prove seam with second lightweight workload        [done, unit-tested]
   -> run operational video inference                    [next]
+  -> wire task selection into Flower if multi-task demo is required [optional]
 ```
 
 Remaining artifact/handoff work, in suggested order:
@@ -639,6 +678,7 @@ venv/bin/python scripts/run_detection_inference.py \
   --save-images
 ```
 
-Next: add actual raw log capture or a clean ClientApp-side per-client reporting
-path if Flower exposes one. Before model-quality comparisons, keep relaxed
-min-node/dropout runs separate from strict baseline metrics.
+Next: either wire a second workload into a runnable Flower entry point if the
+report needs a multi-task demo, or move into the method phase. Before
+model-quality comparisons, keep relaxed min-node/dropout runs separate from
+strict baseline metrics.

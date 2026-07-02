@@ -1,0 +1,60 @@
+{
+  "config": {
+    "batch_size": 2,
+    "device": "cuda",
+    "image_size": 512,
+    "local_epochs": 1,
+    "lr": 0.005,
+    "min_available_nodes": 2,
+    "min_evaluate_nodes": 2,
+    "min_train_nodes": 2,
+    "num_clients": 2,
+    "num_rounds": 1,
+    "pretrained": true,
+    "seed": 2026
+  },
+  "estimated_completed_communication_cost_bytes": 0,
+  "estimated_completed_communication_cost_note": "estimated_completed_communication_cost_bytes is derived from configured num_clients x rounds_completed, not from actual client replies (Flower Result does not expose actual per-round participation).",
+  "exp_id": "EXP-014-logged-deploy",
+  "final_metrics": {},
+  "flower_log_command": "flwr log 2197500200538208246 deploy --show",
+  "logs": {
+    "client_logs": {
+      "site-b": {
+        "path": "outputs/logs/EXP-014-logged-deploy/client_site_b_log.txt",
+        "status": "expected"
+      },
+      "site-c": {
+        "path": "outputs/logs/EXP-014-logged-deploy/client_site_c_log.txt",
+        "status": "expected"
+      }
+    },
+    "flower_log_command": "flwr log 2197500200538208246 deploy --show",
+    "log_dir": "outputs/logs/EXP-014-logged-deploy",
+    "note": "Raw Flower/SuperLink/SuperNode logs are captured manually under log_dir; structured metrics live in round_metrics.json / deployment_summary.json.",
+    "server_log": {
+      "path": "outputs/logs/EXP-014-logged-deploy/server_log.txt",
+      "status": "expected"
+    }
+  },
+  "mode": "federated-deployment",
+  "note": "Server holds no raw data; metrics are weighted distributed-evaluation aggregates returned by clients.",
+  "output_paths": {
+    "deployment_summary": "outputs/EXP-014-logged-deploy/deployment_summary.json",
+    "round_metrics_path": "outputs/EXP-014-logged-deploy/round_metrics.json"
+  },
+  "planned_communication_cost_bytes": 232818560,
+  "rounds_completed": 0,
+  "server": {
+    "aggregation_strategy": "FedAvg",
+    "evaluation": "distributed",
+    "weighted_by_key": "num-examples"
+  },
+  "status": "failed",
+  "timing": {
+    "ended_at": "2026-07-01T08:38:48.634029+00:00",
+    "runtime_seconds": 1718.204,
+    "started_at": "2026-07-01T08:10:10.430096+00:00"
+  },
+  "update_size_bytes": 58204640
+}

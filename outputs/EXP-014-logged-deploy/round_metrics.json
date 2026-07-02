@@ -1,0 +1,23 @@
+{
+  "client_participation": {
+    "actual_client_ids": null,
+    "actual_evaluate_clients": null,
+    "actual_train_clients": null,
+    "participation_note": "Flower Result does not expose per-client identities in this artifact path"
+  },
+  "estimated_completed_communication_cost_bytes": 0,
+  "exp_id": "EXP-014-logged-deploy",
+  "metrics_semantics": "flower_weighted_aggregate",
+  "min_available_nodes": 2,
+  "min_evaluate_nodes": 2,
+  "min_train_nodes": 2,
+  "note": "estimated_completed_communication_cost_bytes is derived from configured num_clients x rounds_completed, not from actual client replies (Flower Result does not expose actual per-round participation).",
+  "num_clients": 2,
+  "num_rounds_configured": 1,
+  "planned_communication_cost_bytes": 232818560,
+  "rounds": [],
+  "rounds_completed": 0,
+  "status": "failed",
+  "update_size_bytes": 58204640,
+  "weighted_by_key": "num-examples"
+}

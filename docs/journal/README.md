@@ -34,7 +34,9 @@ Thư mục này dùng **một file duy nhất** (`docs/journal/README.md`) để
 | **EXP-011** | 2026-06-29 | PPE detection GPU simulation baseline (Faster R-CNN head-only) | Thành công | mAP 0.1179 / mAP50 0.2755 | mAP 0.0657 / mAP50 0.1601 | mAP 0.0951 / mAP50 0.2351 | [Chi tiết](#exp-011) |
 | **EXP-012-smoke** | 2026-06-29/30 | PPE detection real deployment: Mac SuperLink + 2 Colab SuperNodes | Thành công + artifacts/post-FL eval verified | N/A | N/A | mAP 0.0170 / mAP50 0.0498 | [Chi tiết](#exp-012-smoke-colab2) |
 | **EXP-013** | 2026-07-01 | PPE detection deployment robustness smoke: relaxed min-node thresholds | Thành công | N/A | N/A | mAP 0.0514 / mAP50 0.1244 | [Chi tiết](#exp-013-dropout-smoke) |
+| **EXP-014** | 2026-07-01 | PPE detection one-site deployment with structured round logging | Thành công + log capture checked | N/A | N/A | mAP 0.0479 / mAP50 0.1220 | [Chi tiết](#exp-014-one-site-logged) |
 | **WIP** | 2026-06-25 | PPE detection pivot + federated deployment + DVC sync | Đang làm | N/A | N/A | N/A | [Chi tiết](#wip-detection-pivot) |
+| **WIP-TASK** | 2026-07-01 | FL task abstraction layer (`FederatedTask`, detection + embedding classification tasks) | Minimal seam proven with 2 workloads | N/A | N/A | N/A | [Chi tiết](#wip-task-abstraction-2026-07-01) |
 
 ## 2026-06-12
 
@@ -1485,3 +1487,147 @@ venv/bin/flwr run . deploy --stream \
 - [ ] Nếu cần xác nhận dropout thật, dùng `scripts/capture_flower_logs.py` với run ID hoặc rerun có chủ đích với đúng 1 SuperNode online và redirect SuperLink/SuperNode logs bằng `tee`.
 - [ ] Bổ sung artifact ghi actual responding clients / num examples per round nếu Flower result expose đủ thông tin.
 - [ ] Nếu `final_head.npz` cần kiểm tra site-side, chạy `evaluate_final_detection_head.py` trên site đã tham gia và lưu `final_head_site_*_metrics.json`.
+
+<a id="exp-014-one-site-logged"></a>
+### EXP-014 — PPE Detection One-Site Deployment With Structured Round Logging
+- **Mã Thử Nghiệm:** EXP-014-one-site-logged
+- **Ngày Thực Hiện:** 2026-07-01
+- **Trạng Thái:** Thành công theo `deployment_summary.json`, `round_metrics.json`, và Flower logstream đã capture
+- **Git Commit Hash:** `[pending]`
+
+---
+
+#### 1. Mục Tiêu (Objective)
+- Kiểm tra deployment thật khi chỉ có 1 SuperNode online nhưng planned topology vẫn là `num_clients=2`.
+- Xác nhận structured logging mới hoạt động trong run thật: `deployment_summary.json`, `round_metrics.json`, `final_head.npz`.
+- Xác nhận raw Flower logstream có thể dùng làm bằng chứng participation mà artifact Flower `Result` không expose trực tiếp.
+
+#### 2. Cấu Hình & Thiết Lập (Configuration)
+- **Topology:** Mac SuperLink + 1 Colab SuperNode online qua Tailscale/proxychains; planned topology vẫn khai báo 2 client.
+- **Run config chính:**
+  - `exp-id="EXP-014-one-site-logged"`
+  - `output-dir="outputs/EXP-014-one-site-logged"`
+  - `num-clients=2`
+  - `min-train-nodes=1`
+  - `min-evaluate-nodes=1`
+  - `min-available-nodes=1`
+  - `num-rounds=1`
+  - `local-epochs=1`
+  - `batch-size=2`
+  - `image-size=512`
+  - `lr=0.005`
+  - `device="cuda"`
+  - `num-workers=0`
+- **Model setup:** Faster R-CNN MobileNetV3-Large-FPN pretrained, freeze backbone+FPN, aggregate detection head only.
+
+#### 3. Kết Quả (Results)
+
+| Mode | Status | Rounds Completed | Train Loss | mAP@0.5:0.95 | mAP@0.5 | mAP@0.75 | Runtime |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| Federated deployment one-site logged smoke | completed | 1 | 0.6735 | 0.0479 | 0.1220 | 0.0129 | 378.38s |
+
+- `deployment_summary.json` ghi:
+  - `status`: `completed`
+  - `rounds_completed`: `1`
+  - `min_train_nodes`: `1`
+  - `min_evaluate_nodes`: `1`
+  - `min_available_nodes`: `1`
+  - `update_size_bytes`: `58,204,640`
+  - `planned_communication_cost_bytes`: `232,818,560`
+  - `estimated_completed_communication_cost_bytes`: `232,818,560`
+- `round_metrics.json` ghi metrics theo round với `metrics_semantics="flower_weighted_aggregate"`.
+- Flower logstream ghi rõ:
+  - `configure_train: Sampled 1 nodes (out of 1)`
+  - `aggregate_train: Received 1 results and 0 failures`
+  - `configure_evaluate: Sampled 1 nodes (out of 1)`
+  - `aggregate_evaluate: Received 1 results and 0 failures`
+
+#### 4. Artifact Check
+- **Structured output path:** `outputs/EXP-014-one-site-logged/`
+- **Files:**
+  - `outputs/EXP-014-one-site-logged/deployment_summary.json`
+  - `outputs/EXP-014-one-site-logged/round_metrics.json`
+  - `outputs/EXP-014-one-site-logged/final_head.npz`
+- **Raw Flower log capture:** `outputs/logs/EXP-014-logged-deploy/flower_run_log.txt`
+  - Lưu ý: log capture đầu tiên dùng nhãn `EXP-014-logged-deploy` nhưng cùng `run_id=14204997643074899944`, khớp với `deployment_summary.json`.
+  - Recapture vào `outputs/logs/EXP-014-one-site-logged/` sau khi SuperLink không còn reachable trả `Connection to the SuperLink is unavailable`, nên file matching-folder hiện là failure summary, không phải logstream đầy đủ.
+
+#### 5. Quan Sát & Rủi Ro (Observations & Risks)
+- Run này xác nhận relaxed min-node thresholds hoạt động đúng cho one-site deployment: Flower không đợi đủ 2 SuperNodes khi `min_available_nodes=1`.
+- `round_metrics.json` hoạt động đúng cho future deployment runs và giúp không phải chỉ đọc terminal output.
+- `round_metrics.json` vẫn để `actual_train_clients`, `actual_evaluate_clients`, `actual_client_ids` là `null` vì Flower `Result` path hiện không expose identity/count chi tiết; raw Flower logstream là bằng chứng tham gia thực tế.
+- Communication estimate vẫn tính theo configured `num_clients=2`, không phải actual responding clients. Với one-site/relaxed-min-node run, đọc số này như planned/upper-bound estimate.
+- Đây là system/observability smoke, không phải model-quality baseline.
+
+#### 6. Lệnh Tái Lập (Reproducibility)
+```bash
+venv/bin/flwr run . deploy --stream \
+  --run-config 'exp-id="EXP-014-one-site-logged" output-dir="outputs/EXP-014-one-site-logged" num-clients=2 min-train-nodes=1 min-evaluate-nodes=1 min-available-nodes=1 num-rounds=1 local-epochs=1 batch-size=2 image-size=512 lr=0.005 device="cuda" num-workers=0'
+
+PATH="$PWD/venv/bin:$PATH" venv/bin/python scripts/capture_flower_logs.py \
+  --exp-id EXP-014-one-site-logged \
+  --run-id 14204997643074899944
+```
+
+#### 7. Bước Tiếp Theo (Next Steps)
+- [x] Xác nhận structured deployment logging chạy được trong deployment thật.
+- [x] Xác nhận raw Flower logstream có thể chứng minh sampled/received node count cho run one-site.
+- [ ] Với run tiếp theo, dùng đúng `--exp-id` khi capture log ngay lúc SuperLink còn reachable để raw log path khớp hoàn toàn với structured artifact path.
+- [ ] Chuyển trọng tâm sang task abstraction layer: tách reusable FL orchestration/logging/artifact core khỏi PPE detection workload.
+
+<a id="wip-task-abstraction-2026-07-01"></a>
+### WIP — FL Task Abstraction Layer
+- **Ngày:** 2026-07-01
+- **Trạng Thái:** Minimal seam đã được chứng minh với 2 workload; chưa coi là full multi-task runtime
+- **Loại:** System architecture / reusability, không phải model-quality experiment
+
+#### 1. Mục Tiêu
+- Tách phần orchestration FL khỏi PPE detection wiring cụ thể.
+- Tạo một seam nhỏ để workload khác, ví dụ face recognition, có thể cắm vào mà không copy/paste toàn bộ ClientApp/ServerApp logic.
+
+#### 2. Thay Đổi Chính
+- Thêm `src/fl/task.py`:
+  - `FederatedTask` protocol.
+  - `RoundOutput(num_examples, metrics)`.
+- Thêm `src/fl/detection_task.py`:
+  - `DetectionTask` implement protocol bằng wrapper mỏng quanh detection data/model/trainer hiện có.
+  - `DetectionTaskContext(config, bundle, client)`.
+  - Move/re-export helper `detection_config_from_context`, `select_detection_client`, `load_detection_client_context`.
+- `src/fl/detection_clientapp.py` giờ gọi `_TASK = DetectionTask()` cho:
+  - load client context,
+  - build model,
+  - set/get global arrays,
+  - train round,
+  - evaluate round.
+- `src/fl/detection_serverapp.py` dùng `DetectionTask` để build initial model và lấy global arrays.
+- Thêm `src/fl/embedding_classification_task.py`:
+  - `EmbeddingClassificationTask` implement cùng `FederatedTask` interface.
+  - Reuse stage-1 embedding-head stack: `src/models/embedding_head.py`, `src/training/trainer.py`, `src/data/embedding.py`, `DemoConfig`.
+  - Chạy trên in-memory embedding tensors, không cần image/GPU/Flower network; dùng như lightweight proof cho workload thứ 2 và là seam tương lai cho face embedding.
+- Thêm `tests/test_task_reusability.py`:
+  - Một generic driver chạy `build_model -> get/set arrays -> train_round -> evaluate_round` chỉ qua `FederatedTask`.
+  - Cùng driver chạy được `DetectionTask` và `EmbeddingClassificationTask`.
+
+#### 3. Cái Vẫn Detection-Specific Có Chủ Đích
+- Artifact ServerApp vẫn detection-shaped: `final_head.npz`, detection trainable parameter names, update-size, deployment summary/round metrics.
+- `src/fl/detection_federated.py` và simulation baseline vẫn là detection-specific.
+- Dataset/model/trainer concrete modules vẫn nằm ở detection stack.
+
+#### 4. Kiểm Chứng
+- Targeted tests:
+  ```bash
+  venv/bin/python -m pytest tests/test_embedding_classification_task.py tests/test_task_reusability.py tests/test_federated_task.py tests/test_detection_task.py tests/test_detection_flower_apps.py
+  ```
+- Kết quả Codex verify targeted sau regression fix: `31 passed`.
+- Full suite sau regression fix: `209 passed`.
+
+#### 5. Ý Nghĩa
+- Đây là bằng chứng đầu tiên cho hướng "complete system first": PPE detection không còn bị nhúng trực tiếp vào toàn bộ Flower ClientApp path.
+- Seam không còn chỉ là detection-shaped: đã có 2 workload thật ở mức library/test.
+- Chưa gọi là full multi-task runtime vì `EmbeddingClassificationTask` chưa được wired vào Flower entry point / pyproject run path; PPE detection vẫn là active deployed workload.
+
+#### 6. Bước Tiếp Theo
+- [x] Implement workload thứ 2 nhỏ trên `FederatedTask` seam: `EmbeddingClassificationTask`.
+- [x] Prove generic driver chạy được cả detection và embedding classification.
+- [ ] Nếu báo cáo/demo cần multi-task runtime, thêm task selection hoặc entry point riêng cho embedding/face workload.
+- [ ] Khi chuyển sang method phase, giữ `DetectionTask` là workload concrete và không refactor rộng trừ khi có duplication thật.

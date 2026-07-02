@@ -34,6 +34,21 @@ src/fl/detection_serverapp.py
 src/fl/detection_clientapp.py
 ```
 
+The first workload abstraction seam is in place:
+
+```text
+src/fl/task.py             # FederatedTask protocol + RoundOutput
+src/fl/detection_task.py   # PPE detection implementation
+src/fl/embedding_classification_task.py
+                            # lightweight embedding classification implementation
+```
+
+`DetectionTask` owns the active PPE model/data/train/evaluate wiring used by the
+Flower apps. `EmbeddingClassificationTask` reuses the stage-1 embedding-head
+stack as a second lightweight workload, proving the seam is not detection-only.
+The reusable orchestration shape is intentionally small: add task
+implementations before adding registries or dynamic plugin loading.
+
 ## Current Status
 
 Detection simulation is working.
@@ -79,7 +94,7 @@ docs/journal/README.md
 ├── src/
 │   ├── data/            # Detection dataset, manifest, bundle loading
 │   ├── evaluation/      # Metric/update-size helpers
-│   ├── fl/              # Flower detection ClientApp/ServerApp
+│   ├── fl/              # Flower apps plus task abstraction seam
 │   ├── models/          # Faster R-CNN setup and head parameter helpers
 │   ├── training/        # Detection baselines and trainer
 │   └── utils/           # Config, IO, seed helpers
@@ -393,6 +408,30 @@ Git.
 - `round_metrics.json` contains Flower weighted aggregates by round. Flower
   `Result` does not expose actual client identities in this artifact path, so
   participation fields are recorded as `null` rather than guessed.
+
+## Workload Extension Point
+
+The reusable FL seam is `FederatedTask` in `src/fl/task.py`. A workload provides:
+
+- client context loading,
+- model construction,
+- global/trainable array get/set,
+- one local train round,
+- one local evaluate round.
+
+PPE detection implements this as `DetectionTask` in `src/fl/detection_task.py`.
+The Flower ClientApp now drives detection through that task wrapper. Server-side
+artifact writing, `final_head.npz` naming, and detection simulation modules
+remain detection-specific by design.
+
+`EmbeddingClassificationTask` in `src/fl/embedding_classification_task.py` is the
+second implementation. It reuses the older embedding-head classification stack
+and runs on in-memory embedding tensors, so it is a low-cost stand-in for where a
+future face-embedding workload would slot in. It is not wired into the active
+Flower deployment path yet; PPE detection remains the deployed workload.
+
+A future face-recognition workload should add a concrete task implementation,
+such as `FaceTask`, with the same protocol before changing orchestration code.
 
 ## Legacy Synthetic Demo
 

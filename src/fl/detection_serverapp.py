@@ -11,14 +11,13 @@ from flwr.serverapp.strategy import FedAvg
 
 from src.evaluation.metrics import parameter_bytes
 from src.fl.deployment_artifacts import finalize_deployment_artifacts
-from src.models.detection_model import (
-    build_detection_model,
-    detection_trainable_parameter_names,
-    get_detection_head_parameters,
-)
+from src.fl.detection_task import DetectionTask
+from src.models.detection_model import detection_trainable_parameter_names
 from src.utils.detection_config import DetectionConfig
 
 app = ServerApp()
+
+_TASK = DetectionTask()
 
 
 @app.main()
@@ -27,12 +26,8 @@ def main(grid: Grid, context: Context) -> None:
         dict(context.run_config),
         env_overrides=True,
     )
-    model = build_detection_model(
-        num_classes=config.num_classes,
-        pretrained=config.pretrained,
-        seed=config.seed,
-    )
-    head_arrays = get_detection_head_parameters(model)
+    model = _TASK.build_model(config, num_classes=config.num_classes)
+    head_arrays = _TASK.get_global_arrays(model)
     head_param_names = detection_trainable_parameter_names(model)
     update_size_bytes = parameter_bytes(head_arrays)
 

@@ -192,6 +192,19 @@ def test_build_strategy_defaults_to_strict_num_clients(monkeypatch):
     assert captured["fraction_evaluate"] == 1.0
 
 
+def test_clientapp_and_serverapp_wired_to_detection_task():
+    import src.fl.detection_clientapp as clientapp
+    import src.fl.detection_serverapp as serverapp_module
+    import src.fl.detection_task as detection_task
+
+    assert isinstance(clientapp._TASK, detection_task.DetectionTask)
+    assert isinstance(serverapp_module._TASK, detection_task.DetectionTask)
+    # re-exported helpers are the very same objects (backward-compatible imports)
+    assert clientapp.detection_config_from_context is detection_task.detection_config_from_context
+    assert clientapp.select_detection_client is detection_task.select_detection_client
+    assert clientapp.load_detection_client_context is detection_task.load_detection_client_context
+
+
 def test_build_strategy_uses_explicit_min_node_overrides(monkeypatch):
     captured = {}
 
