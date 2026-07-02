@@ -51,7 +51,7 @@ implementations before adding registries or dynamic plugin loading.
 
 ## Current Status
 
-Detection simulation is working.
+PPE detection simulation is working.
 
 - EXP-011 ran on RTX3060 with 3 simulated sites and real PPE images.
 - Centralized reference: mAP `0.1179`, mAP50 `0.2755`.
@@ -59,14 +59,38 @@ Detection simulation is working.
 - Federated head-only FedAvg: mAP `0.0951`, mAP50 `0.2351`.
 - Detection-head update size is large: about `55-58 MB` per client per round.
 
-Cross-machine deployment smoke is working.
+Cross-machine deployment is working on the active 2-site topology.
 
 - EXP-012-smoke ran with Mac SuperLink + 2 Colab SuperNodes over Tailscale
   userspace networking.
 - 1 round completed end-to-end with distributed evaluation.
+- EXP-013/EXP-014 validated relaxed 1-of-2 Colab behavior for dropout/straggler
+  robustness smoke runs.
+- EXP-015-strict-2site-logged completed as the clean strict baseline:
+  Mac SuperLink + `site-b` + `site-c`, `min_train_nodes=2`,
+  `min_evaluate_nodes=2`, `min_available_nodes=2`.
+- EXP-015 artifacts are complete and path-consistent:
+  `deployment_summary.json`, `round_metrics.json`, `final_head.npz`, plus
+  `outputs/logs/EXP-015-strict-2site-logged/flower_run_log.txt`.
+- EXP-015 result: 1 round, train loss `0.5492`, mAP `0.0170`, mAP50 `0.0498`,
+  mAP75 `0.0065`, runtime about `323s`, update size `58,204,640` bytes.
 - The active deployment target is now Mac server + 2 Colab clients. Ubuntu
   RTX3060 / `site-a` is retired from deployment because it cannot be run/joined
   under the current access constraints.
+
+Edge-device emulation is implemented at code level.
+
+- `EdgeProfile` supports built-ins `fast`, `slow`, `unreliable`, and
+  `low-bandwidth`, plus JSON profiles.
+- It can be passed through Flower run-config, `.env`, or Colab SuperNode env
+  variables using `edge-profile` / `edge-profiles` or
+  `FL_EDGE_PROFILE` / `FL_EDGE_PROFILES`.
+- It is wired into both Flower ClientApp deployment/local-sim and the in-process
+  `run_detection_federated` path.
+- No profile configured means existing FedAvg behavior is preserved.
+
+The next planned experiment is EXP-016: run controlled EdgeProfile local-sim
+profiles before moving to communication compression and personalization.
 
 Experiment notes are tracked in:
 
@@ -86,15 +110,17 @@ docs/journal/README.md
 ├── docs/
 │   ├── journal/         # Single experiment registry and reports
 │   └── md/              # Planning and research docs
+├── notebooks/           # Colab site-b/site-c SuperNode notebooks
 ├── outputs/             # Local metrics, logs, exported shards, checkpoints
 ├── scripts/
+│   ├── capture_flower_logs.py
 │   ├── generate_detection_manifest.py
 │   ├── run_detection_sim.py
 │   └── export_detection_subset.py
 ├── src/
 │   ├── data/            # Detection dataset, manifest, bundle loading
 │   ├── evaluation/      # Metric/update-size helpers
-│   ├── fl/              # Flower apps plus task abstraction seam
+│   ├── fl/              # Flower apps, task seam, EdgeProfile emulation
 │   ├── models/          # Faster R-CNN setup and head parameter helpers
 │   ├── training/        # Detection baselines and trainer
 │   └── utils/           # Config, IO, seed helpers
@@ -134,18 +160,27 @@ should use `FL_*`.
 Common examples:
 
 ```bash
-# Mac server / local simulation
-FL_RUN_ID=fl-system-smoke
-FL_OUTPUT_DIR=outputs/fl-system-smoke
+# Mac server / local simulation strict baseline
+FL_RUN_ID=EXP-015-strict-2site-logged
+FL_OUTPUT_DIR=outputs/EXP-015-strict-2site-logged
 FL_MANIFEST_PATH=configs/datasets/ppe_detection_exp011_manifest.csv
 FL_DATA_ROOT=data/ppe
 FL_NUM_CLIENTS=2
+FL_MIN_TRAIN_NODES=2
+FL_MIN_EVALUATE_NODES=2
+FL_MIN_AVAILABLE_NODES=2
+FL_EDGE_PROFILE=
+FL_EDGE_PROFILES=
 
 # Colab site-b/site-c: change client id and shard path per notebook
 FL_CLIENT_ID=site-b
 FL_MANIFEST_PATH=data/ppe_site_b/manifest.csv
 FL_DATA_ROOT=data/ppe_site_b
 ```
+
+For a relaxed 1-of-2 Colab robustness smoke, set the three `FL_MIN_*_NODES`
+values to `1`. For a real strict baseline, leave `FL_EDGE_PROFILE` and
+`FL_EDGE_PROFILES` blank.
 
 Run tests:
 
@@ -189,6 +224,68 @@ venv/bin/python scripts/run_detection_sim.py \
   --device cpu \
   --num-workers 0
 ```
+
+`scripts/run_detection_sim.py` is the regular baseline runner. For EdgeProfile
+experiments, use Flower `local-sim` run-config or call
+`run_detection_federated` with a `DetectionConfig` that includes
+`edge_profile`/`edge_profiles`.
+
+## EdgeProfile Emulation
+
+`EdgeProfile` is app-level edge-device emulation, not OS/network throttling. It
+is useful for controlled EXP-016-style runs before relying on real Colab
+stragglers.
+
+Built-in profiles:
+
+```text
+fast
+slow
+unreliable
+low-bandwidth
+```
+
+You can set one global profile:
+
+```bash
+FL_EDGE_PROFILE=slow
+```
+
+Or a per-client mapping:
+
+```bash
+FL_EDGE_PROFILES='{"site-b":"fast","site-c":"unreliable"}'
+```
+
+JSON object profiles are also supported when you need exact knobs:
+
+```bash
+FL_EDGE_PROFILE='{"tier":"colab-low-bandwidth","batch_size":1,"max_train_samples":80,"latency_ms":150,"bandwidth_mbps":3}'
+```
+
+For Flower local-sim/deploy, pass the same values through run-config:
+
+```bash
+venv/bin/flwr run . local-sim --stream \
+  --run-config 'exp-id="EXP-016-edgeprofile-local-sim" output-dir="outputs/EXP-016-edgeprofile-local-sim" num-clients=3 min-train-nodes=1 min-evaluate-nodes=1 min-available-nodes=1 edge-profiles="{\"site-a\":\"fast\",\"site-b\":\"slow\",\"site-c\":\"unreliable\"}"'
+```
+
+For local-sim, make sure the Flower federation has enough simulated
+SuperNodes for the `num-clients` value you choose.
+
+Profile effects:
+
+- `image_size`, `batch_size`, and `num_workers` override the per-client resource
+  config where safe.
+- `max_train_samples` limits training data only; validation stays unchanged.
+- `artificial_train_delay_sec` sleeps during train only.
+- `availability_prob` / `dropout_prob` create deterministic runtime failures
+  from seed, client, round, and stage.
+- `latency_ms` / `bandwidth_mbps` estimate transfer time in metrics; network
+  delay is not slept.
+
+If both `edge-profile` and `edge-profiles` are blank, the existing strict FedAvg
+behavior is unchanged.
 
 ## Cross-Machine Deployment
 
@@ -288,6 +385,16 @@ In the examples below, replace `100.100.58.9` with that IP.
 Colab usually cannot create a real Tailscale TUN interface. Use Tailscale
 userspace networking with a SOCKS proxy.
 
+The maintained Colab entry points are:
+
+```text
+notebooks/SITE_b.ipynb
+notebooks/SITE_c.ipynb
+```
+
+Each notebook contains the original strict SuperNode cell plus optional
+EdgeProfile SuperNode cells. Run only one SuperNode cell at a time.
+
 Install project dependencies in Colab, then start Tailscale userspace:
 
 ```bash
@@ -310,28 +417,36 @@ printf "strict_chain\nproxy_dns\n[ProxyList]\nsocks5 127.0.0.1 1055\n" \
 Start `site-b`:
 
 ```bash
-proxychains4 venv/bin/flower-supernode \
+FL_CLIENT_ID=site-b \
+FL_MANIFEST_PATH=data/ppe_site_b/manifest.csv \
+FL_DATA_ROOT=data/ppe_site_b \
+FL_DEVICE=cuda \
+FL_NUM_WORKERS=0 \
+proxychains4 flower-supernode \
   --insecure \
-  --superlink 100.100.58.9:9092 \
-  --node-config 'client-id="site-b" manifest-path="data/ppe_site_b/manifest.csv" root-dir="data/ppe_site_b"'
+  --superlink 100.100.58.9:9092
 ```
 
 For the second Colab, use a different hostname and `site-c` paths:
 
 ```bash
-proxychains4 venv/bin/flower-supernode \
+FL_CLIENT_ID=site-c \
+FL_MANIFEST_PATH=data/ppe_site_c/manifest.csv \
+FL_DATA_ROOT=data/ppe_site_c \
+FL_DEVICE=cuda \
+FL_NUM_WORKERS=0 \
+proxychains4 flower-supernode \
   --insecure \
-  --superlink 100.100.58.9:9092 \
-  --node-config 'client-id="site-c" manifest-path="data/ppe_site_c/manifest.csv" root-dir="data/ppe_site_c"'
+  --superlink 100.100.58.9:9092
 ```
 
 ### 5. Submit a deployment run
 
-From the Mac, in the repo root:
+From the Mac, in the repo root, strict 2-of-2 baseline:
 
 ```bash
 venv/bin/flwr run . deploy --stream \
-  --run-config 'num-clients=2'
+  --run-config 'exp-id="EXP-015-strict-2site-logged" output-dir="outputs/EXP-015-strict-2site-logged" num-clients=2 min-train-nodes=2 min-evaluate-nodes=2 min-available-nodes=2 num-rounds=1 local-epochs=1 batch-size=2 image-size=512 lr=0.005 device="cuda" num-workers=0'
 ```
 
 The deployment baseline is strict by default: train, evaluate, and availability
@@ -353,6 +468,18 @@ venv/bin/flwr list deploy
 venv/bin/flwr log <RUN_ID> deploy --show
 ```
 
+Capture the Flower run log while the SuperLink is still reachable:
+
+```bash
+PATH="$PWD/venv/bin:$PATH" venv/bin/python scripts/capture_flower_logs.py \
+  --exp-id <EXP-ID> \
+  --run-id <FLOWER_RUN_ID>
+```
+
+The script writes `flower_run_log.txt` and `log_capture_summary.json` under
+`outputs/logs/<EXP-ID>/`. It does not print the full logstream to the terminal by
+default.
+
 ### 6. Run site-side inference
 
 After a deployment run writes `final_head.npz`, each site can load that final
@@ -361,9 +488,9 @@ raw images.
 
 ```bash
 venv/bin/python scripts/run_detection_inference.py \
-  --head-path outputs/EXP-012-rerun/final_head.npz \
+  --head-path outputs/EXP-015-strict-2site-logged/final_head.npz \
   --input-dir <site-local-images> \
-  --output-dir outputs/EXP-012-rerun/inference_site_b \
+  --output-dir outputs/EXP-015-strict-2site-logged/inference_site_b \
   --device auto \
   --score-threshold 0.5 \
   --save-images
@@ -395,16 +522,9 @@ Git.
 - Raw Flower/SuperLink/SuperNode text logs belong under `outputs/logs/<EXP-ID>/`.
   The deployment summary records expected log paths and a `flwr log <RUN_ID>
   deploy --show` hint when the run id is available.
-- After a deployment run, capture the Flower logstream with:
-  ```bash
-  venv/bin/python scripts/capture_flower_logs.py \
-    --exp-id <EXP-ID> \
-    --run-id <FLOWER_RUN_ID> \
-    --print-commands
-  ```
-  This writes `flower_run_log.txt` and `log_capture_summary.json` under
-  `outputs/logs/<EXP-ID>/`. SuperLink/SuperNode terminal logs must still be
-  redirected with `tee` during the run if you need those raw files.
+- `capture_flower_logs.py` captures Flower's run logstream. SuperLink/SuperNode
+  terminal logs must still be redirected with `tee` during the run if you need
+  those raw files.
 - `round_metrics.json` contains Flower weighted aggregates by round. Flower
   `Result` does not expose actual client identities in this artifact path, so
   participation fields are recorded as `null` rather than guessed.
@@ -423,6 +543,10 @@ PPE detection implements this as `DetectionTask` in `src/fl/detection_task.py`.
 The Flower ClientApp now drives detection through that task wrapper. Server-side
 artifact writing, `final_head.npz` naming, and detection simulation modules
 remain detection-specific by design.
+
+`EdgeProfile` lives beside the FL task layer in `src/fl/edge_profile.py`. It is
+model-agnostic code-level emulation used by `DetectionTask` and
+`run_detection_federated`; it does not change the detector or trainer internals.
 
 `EmbeddingClassificationTask` in `src/fl/embedding_classification_task.py` is the
 second implementation. It reuses the older embedding-head classification stack
